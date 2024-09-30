@@ -22,7 +22,7 @@ void MainNode::init() {
         shared_from_this(), 1.0, 0.5, 0.1, example_path);
 
     pid_controller = std::make_unique<ROS2Controllers::PIDController>(
-        shared_from_this(), 1.0, 1.0, 1.0, 0.1, example_path);
+        shared_from_this(), 1.0, 1.0, 1.0, 0.1, 1.0, example_path);
 }
 
 
