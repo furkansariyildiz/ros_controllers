@@ -10,9 +10,10 @@
 
 
 
-class MainNode : public rclcpp::Node 
+class MainNode : public rclcpp::Node
 {
     private:
+        std::unique_ptr<ROS2Controllers::StanleyController> stanley_controller_;
 
     protected:
 
@@ -20,6 +21,8 @@ class MainNode : public rclcpp::Node
         MainNode();
 
         ~MainNode();
+
+        void init();
 };
 
 

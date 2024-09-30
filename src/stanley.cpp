@@ -2,8 +2,15 @@
 
 
 
-ROS2Controllers::StanleyController::StanleyController(double V, double K)
-    : V_(V), K_(K) {
+ROS2Controllers::StanleyController::StanleyController(const std::shared_ptr<rclcpp::Node> &node, double V, double K,
+                                                      double error_threshold, const nav_msgs::msg::Path &path)
+    : node_(node), V_(V), K_(K), error_threshold_(error_threshold), path_(path) {
+    // Subscribers
+
+    // Publishers
+    cmd_vel_publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);    
+
+    // Timers
 
 }
 
@@ -15,9 +22,8 @@ ROS2Controllers::StanleyController::~StanleyController() {
 
 
 
-void ROS2Controllers::StanleyController::findEquationOfLine(
-    int first_position_x, int first_position_y, 
-    int second_position_x, int second_position_y) {
+void ROS2Controllers::StanleyController::findEquationOfLine(int first_position_x, int first_position_y, 
+                                                            int second_position_x, int second_position_y) {
     
     line_slope_ = (second_position_y - first_position_x) / (second_position_x - first_position_x);
     line_intercept_ = second_position_y - line_slope_ * second_position_x;
@@ -25,11 +31,8 @@ void ROS2Controllers::StanleyController::findEquationOfLine(
 
 
 
-double ROS2Controllers::StanleyController::getStanleyControllerSignal(
-    int first_position_x, int first_position_y, 
-    int second_position_x, int second_position_y, 
-    int vehicle_position_x, int vehicle_position_y, 
-    int vehicle_yaw) {
+double ROS2Controllers::StanleyController::getStanleyControllerSignal(int vehicle_position_x, int vehicle_position_y, 
+                                                                      int vehicle_yaw) {
 
     double error = (vehicle_position_y - line_slope_ * vehicle_position_x - line_intercept_) / (sqrt(pow(-line_slope_, 2) + pow(1, 2)));
 
@@ -40,5 +43,13 @@ double ROS2Controllers::StanleyController::getStanleyControllerSignal(
     double signal = heading_error + cross_track_steering;
 
     return signal;
+}
+
+
+
+void ROS2Controllers::StanleyController::run() {
+    for(const auto &pose : path_.poses) {
+        
+    }
 }
 
