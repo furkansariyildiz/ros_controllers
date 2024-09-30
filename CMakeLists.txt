@@ -17,6 +17,7 @@ include_directories(include {catkin_INCLUDE_DIRS})
 
 add_library(ros_controllers STATIC
             src/stanley.cpp
+            src/pid.cpp
 )
 
 add_executable(ros_controllers_node src/main_node.cpp)

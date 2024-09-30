@@ -8,9 +8,11 @@ MainNode::MainNode()
 }
 
 
+
 MainNode::~MainNode() {
     
 }
+
 
 
 void MainNode::init() {
@@ -18,11 +20,16 @@ void MainNode::init() {
 
     stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(
         shared_from_this(), 1.0, 0.5, 0.1, example_path);
+
+    pid_controller = std::make_unique<ROS2Controllers::PIDController>(
+        shared_from_this(), 1.0, 1.0, 1.0, 0.1, example_path);
 }
+
 
 
 void MainNode::controlManager() {
     stanley_controller_->run();
+    pid_controller->run();
 }
 
 
