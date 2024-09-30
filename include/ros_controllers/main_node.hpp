@@ -23,6 +23,8 @@ class MainNode : public rclcpp::Node
         ~MainNode();
 
         void init();
+
+        void controlManager();
 };
 
 

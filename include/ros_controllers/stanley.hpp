@@ -29,13 +29,13 @@ namespace ROS2Controllers
 
             double error_threshold_;
 
-            const nav_msgs::msg::Path &path_;
+            const nav_msgs::msg::Path path_;
 
         protected:
 
         public:
             StanleyController(const std::shared_ptr<rclcpp::Node> &node, double V, double K, 
-                              double error_threshold, const nav_msgs::msg::Path &path);
+                              double error_threshold, const nav_msgs::msg::Path path);
 
             ~StanleyController();
 

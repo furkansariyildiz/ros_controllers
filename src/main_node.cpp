@@ -14,10 +14,15 @@ MainNode::~MainNode() {
 
 
 void MainNode::init() {
-        nav_msgs::msg::Path example_path;
+    nav_msgs::msg::Path example_path;
 
-        stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(
-            std::dynamic_pointer_cast<rclcpp::Node>(shared_from_this()), 1.0, 0.5, 0.1, example_path);
+    stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(
+        shared_from_this(), 1.0, 0.5, 0.1, example_path);
+}
+
+
+void MainNode::controlManager() {
+    stanley_controller_->run();
 }
 
 
@@ -27,6 +32,7 @@ int main(int argc, char *argv[]) {
 
     auto main_node = std::make_shared<MainNode>();
     main_node->init();
+    main_node->controlManager();
 
     rclcpp::spin(main_node);
     rclcpp::shutdown();
