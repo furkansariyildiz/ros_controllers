@@ -31,6 +31,18 @@ target_link_libraries(ros_controllers_node
                       ${catkin_LIBRARIES}
                       ros_controllers
 )
+
+install(TARGETS
+  ros_controllers_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  launch
+  config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 ament_target_dependencies(ros_controllers_node rclcpp rclpy)
 
                       
