@@ -1,0 +1,15 @@
+/ros_controllers_node:
+  ros__parameters:
+    PID:
+      linear_velocity:
+        Kp: 0.5
+        Ki: 0.0
+        Kd: 0.0
+        error_threshold: 0.1
+        signal_limit: 0.5
+      angular_velocity:
+        Kp: 2.0
+        Ki: 0.0
+        Kd: 0.0
+        error_threshold: 0.1
+        signal_limit: 0.52359877559
