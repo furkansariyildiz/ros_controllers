@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -27,7 +28,7 @@ target_link_libraries(ros_controllers
 
 )     
 
-ament_target_dependencies(ros_controllers rclcpp rclpy nav_msgs)
+ament_target_dependencies(ros_controllers rclcpp rclpy tf2 nav_msgs)
 
 target_link_libraries(ros_controllers_node 
                       ${catkin_LIBRARIES}
@@ -45,7 +46,7 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
-ament_target_dependencies(ros_controllers_node rclcpp rclpy nav_msgs)
+ament_target_dependencies(ros_controllers_node rclcpp rclpy tf2 nav_msgs)
 
                       
 ament_export_dependencies(rosidl_default_runtime)

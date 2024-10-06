@@ -4,7 +4,74 @@
 
 MainNode::MainNode() 
     : Node("ros_controllers_node") {
+    // Subscribers
+    odometry_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 1, 
+        std::bind(&MainNode::odometryCallback, this, std::placeholders::_1));
 
+    // Publishers
+    cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1000);
+
+    // Timers
+    pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&MainNode::PID, this));
+    pid_timer_->cancel();
+
+    // Parameters
+    // PID (linear velocity controller)
+    declare_parameter("PID.linear_velocity.Kp", 0.5);
+    declare_parameter("PID.linear_velocity.Ki", 0.0);
+    declare_parameter("PID.linear_velocity.Kd", 0.0);
+    declare_parameter("PID.linear_velocity.error_threshold", 0.1);
+    declare_parameter("PID.linear_velocity.signal_limit", 0.5);
+    
+    Kp_linear_velocity_ = this->
+        get_parameter("PID.linear_velocity.Kp").as_double();
+    Ki_linear_velocity_ = this->
+        get_parameter("PID.linear_velocity.Ki").as_double();
+    Kd_linear_velocity_ = this->
+        get_parameter("PID.linear_velocity.Kd").as_double();
+    error_threshold_linear_velocity_ = this->
+        get_parameter("PID.linear_velocity.error_threshold").as_double();
+    signal_limit_linear_velocity_ = this->
+        get_parameter("PID.linear_velocity.signal_limit").as_double();
+
+
+    // PID (angular velocity controller)
+    declare_parameter("PID.angular_velocity.Kp", 0.5);
+    declare_parameter("PID.angular_velocity.Ki", 0.0);
+    declare_parameter("PID.angular_velocity.Kd", 0.0);
+    declare_parameter("PID.angular_velocity.error_threshold", 0.1);
+    declare_parameter("PID.angular_velocity.signal_limit", 0.5);
+
+    Kp_angular_velocity_ = this->
+        get_parameter("PID.angular_velocity.Kp").as_double();
+    Ki_angular_velocity_ = this->
+        get_parameter("PID.angular_velocity.Ki").as_double();
+    Kd_angular_velocity_ = this->
+        get_parameter("PID.angular_velocity.Kd").as_double();
+    error_threshold_angular_velocity_ = this->
+        get_parameter("PID.angular_velocity.error_threshold").as_double();
+    signal_limit_angular_velocity_ = this->
+        get_parameter("PID.angular_velocity.signal_limit").as_double();
+
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity limit: " << signal_limit_angular_velocity_);
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity limit: " << signal_limit_linear_velocity_);
+
+    // stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(
+    //    shared_from_this(), 1.0, 0.5, 0.1, example_path);
+
+    // Linear Velocity PID Controller
+    linear_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(Kp_linear_velocity_, 
+        Ki_linear_velocity_, Kd_linear_velocity_, error_threshold_linear_velocity_, signal_limit_linear_velocity_);
+    
+    // Angular Velocity PID Controller
+    angular_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(Kp_angular_velocity_, 
+        Ki_angular_velocity_, Kd_angular_velocity_, error_threshold_angular_velocity_, signal_limit_angular_velocity_);
+
+    // Initialize class variables
+    vehicle_position_is_reached_ = false;
+    vehicle_orientation_is_reached_ = false;
+
+    this->controlManager();
 }
 
 
@@ -17,30 +84,62 @@ MainNode::~MainNode() {
 
 void MainNode::odometryCallback(const nav_msgs::msg::Odometry::SharedPtr message) {
     odometry_message_ = *message;
+
+    tf2::Quaternion quaternion(
+        message->pose.pose.orientation.x,
+        message->pose.pose.orientation.y,
+        message->pose.pose.orientation.z,
+        message->pose.pose.orientation.w
+    );
+
+    tf2::Matrix3x3 matrix(quaternion);
+
+    matrix.getRPY(roll_, pitch_, yaw_);
 }
 
 
 
+void MainNode::prepareWaypoints() {
+    // Sine wave
+    double ampliute = 2.0;
+    double frequency = 0.2;
+    int number_of_points = 100;
+
+    path_.poses.clear();
+
+    for (int i=0; i<number_of_points; i++) {
+        geometry_msgs::msg::PoseStamped pose;
+        pose.header.frame_id = "map";
+        pose.header.stamp = this->now();
+
+        pose.pose.position.x = static_cast<double>(i) * 0.5;
+        pose.pose.position.y = ampliute * std::sin(frequency * pose.pose.position.x);
+        pose.pose.position.z = 0.0;
+
+        pose.pose.orientation.x = 0.0;
+        pose.pose.orientation.y = 0.0;
+        pose.pose.orientation.z = 0.0;
+        pose.pose.orientation.w = 1.0;
+
+        path_.poses.push_back(pose);
+    }
+
+    index_of_pose_ = 1;
+}
+
+
 void MainNode::init() {
-    nav_msgs::msg::Path example_path;
 
-    stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(
-        shared_from_this(), 1.0, 0.5, 0.1, example_path);
-
-    // Linear Velocity PID Controller
-    linear_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(
-        shared_from_this(), 1.0, 1.0, 1.0, 0.1, 1.0);
-    
-    // Angular Velocity PID Controller
-    angular_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(
-        shared_from_this(), 1.0, 1.0, 1.0, 0.1, 1.0);
 }
 
 
 
 void MainNode::controlManager() {
-    stanley_controller_->run();
-    PID();
+    prepareWaypoints();
+    pid_timer_->reset();
+
+    // stanley_controller_->run();
+    // PID();
 }
 
 
@@ -50,35 +149,56 @@ void MainNode::stanley() {
 }
 
 
+
 void MainNode::PID() {
-    int index_of_pose = 0;
-    while (rclcpp::ok() && index_of_pose < path_.poses.size()) {
-        geometry_msgs::msg::Pose desired_pose = path_.poses[index_of_pose].pose;
-        geometry_msgs::msg::Pose vehicle_pose = odometry_message_.pose.pose;
-
-        // Linear velocity error (sqrt((x2 - x1)^2 + (y2 - y1)^2)) meters
-        linear_velocity_error_ = std::sqrt(std::pow(desired_pose.position.x - vehicle_pose.position.x, 2) + 
-            std::pow(desired_pose.position.y - vehicle_pose.position.y, 2));
-
-        // Angular velocity error atan((y2 - y1) / (x2 - x1)) radians
-        angular_velocity_error_ = std::atan2((desired_pose.position.y - vehicle_pose.position.y), 
-            (desired_pose.position.x - vehicle_pose.position.x));
-
-        linear_velocity_signal_ = linear_velocity_pid_controller_->getPIDControllerSignal(linear_velocity_error_, 
-            0.01);
-
-        angular_velocity_signal_ = angular_velocity_pid_controller_->getPIDControllerSignal(angular_velocity_error_,
-            0.01);
-
-        if(linear_velocity_signal_ == 0.0 && angular_velocity_signal_ == 0.0) {
-            index_of_pose++;
-        }
-
-        cmd_vel_message_.linear.x = linear_velocity_signal_;
-        cmd_vel_message_.angular.z = angular_velocity_signal_;
-
-        cmd_vel_publisher_->publish(cmd_vel_message_);
+    if (index_of_pose_ >= path_.poses.size()) {
+        pid_timer_->cancel();
+        RCLCPP_INFO_STREAM(this->get_logger(), "PID controller is ended.");
     }
+    // Desired pose
+    geometry_msgs::msg::Pose desired_pose = path_.poses[index_of_pose_].pose;
+    
+    // Vehicle pose
+    geometry_msgs::msg::Pose vehicle_pose = odometry_message_.pose.pose;
+
+    // Linear velocity error (sqrt((x2 - x1)^2 + (y2 - y1)^2)) meters
+    linear_velocity_error_ = std::sqrt(std::pow(desired_pose.position.x - vehicle_pose.position.x, 2) + 
+        std::pow(desired_pose.position.y - vehicle_pose.position.y, 2));
+
+    // Angular velocity error atan((y2 - y1) / (x2 - x1)) radians
+    double desired_angle = atan2((desired_pose.position.y - vehicle_pose.position.y), 
+        (desired_pose.position.x - vehicle_pose.position.x));
+
+    angular_velocity_error_ = desired_angle - yaw_;
+
+    angular_velocity_error_ = atan2(sin(angular_velocity_error_), cos(angular_velocity_error_));
+
+    auto [linear_velocity_signal_, vehicle_position_is_reached_] = linear_velocity_pid_controller_->getPIDControllerSignal(
+        linear_velocity_error_, 0.1);
+
+    auto [angular_velocity_signal_, vehicle_orientation_is_reached_] = angular_velocity_pid_controller_->getPIDControllerSignal(angular_velocity_error_,
+        0.1);
+
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity: " << linear_velocity_signal_);
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity: " << angular_velocity_signal_);
+
+
+    if(vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
+        index_of_pose_++;
+        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+    }
+
+    cmd_vel_message_.linear.x = linear_velocity_signal_;
+    cmd_vel_message_.angular.z = angular_velocity_signal_;
+
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Linear error: " << linear_velocity_error_);
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Angular error: " << angular_velocity_error_ << "\n");
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Desired angle: " << desired_angle);
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Vehicle yaw: " << yaw_);
+
+    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------");
+
+    cmd_vel_publisher_->publish(cmd_vel_message_);
 }
 
 
@@ -87,37 +207,8 @@ int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
 
     auto main_node = std::make_shared<MainNode>();
-    main_node->init();
-    main_node->controlManager();
-
     rclcpp::spin(main_node);
     rclcpp::shutdown();
 
     return 0;
 }
-
-/** 
- * 
-
-    int index_of_pose = 0;
-    while (rclcpp::ok() && index_of_pose < path_.poses.size()) {
-        // Getting desired pose and vehicle pose
-        geometry_msgs::msg::Pose desired_pose = path_.poses[index_of_pose].pose;
-        geometry_msgs::msg::Pose vehicle_pose = odometry_message_.pose.pose;
-        
-        // Linear velocity error (sqrt((x2 - x1)^2 + (y2 - y1)^2)) meters
-        linear_velocity_error_ = std::sqrt(std::pow(desired_pose.position.x - vehicle_pose.position.x, 2) + 
-            std::pow(desired_pose.position.y - vehicle_pose.position.y, 2));
-        
-        // Angular velocity error atan((y2 - y1) / (x2 - x1)) radians
-        angular_velocity_error_ = std::atan2((desired_pose.position.y - vehicle_pose.position.y), 
-            (desired_pose.position.x - vehicle_pose.position.x));
-
-        if (linear_velocity_error_ <= linear_error_threshold_) {
-            linear_velocity_signal_ = 0.0;
-            index_of_pose++;
-        } else {
-            // linear_velocity_signal_ = getPIDControllerSignal()
-        }
-
-        */

@@ -5,7 +5,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <iostream>
 #include <cmath>
-
+#include <utility>
 
 
 namespace ROS2Controllers
@@ -32,12 +32,12 @@ namespace ROS2Controllers
         protected:
 
         public:
-            PIDController(const std::shared_ptr<rclcpp::Node> &node, double Kp, double Ki, 
-                          double Kd, double error_threshold, const double signal_limit);
+            PIDController(double Kp, double Ki, double Kd, 
+                        double error_threshold, const double signal_limit);
     
             ~PIDController();
 
-            double getPIDControllerSignal(double error, double dt);
+            std::pair<double, bool> getPIDControllerSignal(double error, double dt);
 
             void run();
     };
