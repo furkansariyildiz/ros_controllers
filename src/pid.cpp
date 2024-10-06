@@ -2,16 +2,17 @@
 
 
 ROS2Controllers::PIDController::PIDController(const std::shared_ptr<rclcpp::Node> &node, double Kp, double Ki, 
-                                              double Kd, double error_threshold, const double signal_limit, 
-                                              const nav_msgs::msg::Path path)
+                                              double Kd, double error_threshold, const double signal_limit)
     : node_(node), Kp_(Kp), Ki_(Ki), Kd_(Kd), previous_error_(0.0), P_(0.0), I_(0.0), D_(0.0), 
-      error_threshold_(error_threshold), signal_limit_(signal_limit), path_(path) {
+      error_threshold_(error_threshold), signal_limit_(signal_limit){
     // Subscribers
 
     // Publishers
-    cmd_vel_publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);    
 
     // Timers
+
+    // Parameters
+
 }
 
 
@@ -35,6 +36,10 @@ double ROS2Controllers::PIDController::getPIDControllerSignal(double error, doub
         return signal_limit_;
     } else if (signal < -signal_limit_) {
         return -signal_limit_;
+    }
+
+    if (error <= error_threshold_) {
+        return 0.0;
     } 
 
     return signal;

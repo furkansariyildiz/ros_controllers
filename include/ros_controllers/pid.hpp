@@ -6,9 +6,6 @@
 #include <iostream>
 #include <cmath>
 
-#include <nav_msgs/msg/path.hpp>
-#include <geometry_msgs/msg/twist.hpp>
-
 
 
 namespace ROS2Controllers
@@ -17,8 +14,6 @@ namespace ROS2Controllers
     {
         private:
             std::shared_ptr<rclcpp::Node> node_;
-
-            rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
 
             double Kp_;
 
@@ -34,14 +29,11 @@ namespace ROS2Controllers
 
             const double signal_limit_;
 
-            const nav_msgs::msg::Path path_;
-
         protected:
 
         public:
             PIDController(const std::shared_ptr<rclcpp::Node> &node, double Kp, double Ki, 
-                          double Kd, double error_threshold, const double signal_limit, 
-                          const nav_msgs::msg::Path path);
+                          double Kd, double error_threshold, const double signal_limit);
     
             ~PIDController();
 
