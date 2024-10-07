@@ -83,6 +83,9 @@ MainNode::MainNode()
     // Stanley Controller
     stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(V_, K_, error_threshold_stanley_controller_, 
         signal_limit_stanley_controller_);
+
+    // Pure-Pursuit Controller
+    pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuiteController>(0.0, 0.0, 0.0, 0.0, 0.0);
     
     // Initialize class variables
     vehicle_position_is_reached_ = false;

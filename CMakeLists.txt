@@ -20,8 +20,9 @@ find_package(rosidl_default_generators REQUIRED)
 include_directories(include {catkin_INCLUDE_DIRS})
 
 add_library(ros_controllers STATIC
-            src/stanley.cpp
             src/pid.cpp
+            src/stanley.cpp
+            src/pure_pursuit.cpp
 )
 
 add_executable(ros_controllers_node src/main_node.cpp)

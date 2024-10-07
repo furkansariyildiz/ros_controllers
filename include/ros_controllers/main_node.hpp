@@ -2,6 +2,7 @@
 #define MAIN_NODE_HPP_
 
 
+
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/time.hpp>
 #include <tf2/LinearMath/Quaternion.h>
@@ -9,8 +10,9 @@
 #include <chrono>
 
 // ROS2 Controller Libraries
-#include "ros_controllers/stanley.hpp"
 #include "ros_controllers/pid.hpp"
+#include "ros_controllers/stanley.hpp"
+#include "ros_controllers/pure_pursuit.hpp"
 
 // Messages
 #include <geometry_msgs/msg/twist.hpp>
@@ -21,7 +23,10 @@
 #include <std_srvs/srv/empty.hpp>
 
 
+
+// Constants
 #define USE_GAZEBO          true
+
 
 
 class MainNode : public rclcpp::Node
@@ -36,6 +41,7 @@ class MainNode : public rclcpp::Node
         std::unique_ptr<ROS2Controllers::StanleyController> stanley_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> linear_velocity_pid_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> angular_velocity_pid_controller_;
+        std::unique_ptr<ROS2Controllers::PurePursuiteController> pure_pursuite_controller_;
     
         rclcpp::TimerBase::SharedPtr pid_timer_;
         rclcpp::TimerBase::SharedPtr stanley_timer_;

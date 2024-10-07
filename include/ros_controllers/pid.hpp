@@ -13,8 +13,6 @@ namespace ROS2Controllers
     class PIDController
     {
         private:
-            std::shared_ptr<rclcpp::Node> node_;
-
             double Kp_;
 
             double Ki_;
