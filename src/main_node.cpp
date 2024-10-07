@@ -11,11 +11,13 @@ MainNode::MainNode()
     // Publishers
     cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1000);
 
-    // Timers
-    pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&MainNode::PID, this));
-    pid_timer_->cancel();
+    // Services
+    reset_simulation_client_ = this->create_client<std_srvs::srv::Empty>("/reset_simulation");
 
     // Parameters
+    declare_parameter("sleep_time", 100);
+    sleep_time_ = this->get_parameter("sleep_time").as_int();
+
     // PID (linear velocity controller)
     declare_parameter("PID.linear_velocity.Kp", 0.5);
     declare_parameter("PID.linear_velocity.Ki", 0.0);
@@ -70,6 +72,11 @@ MainNode::MainNode()
     // Initialize class variables
     vehicle_position_is_reached_ = false;
     vehicle_orientation_is_reached_ = false;
+    dt_ = sleep_time_ / 1000.0;
+
+    // Timers
+    pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
+    pid_timer_->cancel();
 
     this->controlManager();
 }
@@ -124,22 +131,31 @@ void MainNode::prepareWaypoints() {
         path_.poses.push_back(pose);
     }
 
-    index_of_pose_ = 1;
+    index_of_pose_ = 0;
 }
 
 
-void MainNode::init() {
 
-}
+void MainNode::resetSystem() {
+    // Setting cmd vel message to 0.0
+    cmd_vel_message_.linear.x = 0.0;
+    cmd_vel_message_.angular.z = 0.0;
+    cmd_vel_publisher_->publish(cmd_vel_message_);
+
+    // Reset Gazebo Simulation
+    if (USE_GAZEBO) {
+        auto empty_request = std::make_shared<std_srvs::srv::Empty::Request>();
+        auto result = reset_simulation_client_->async_send_request(empty_request);
+    } else {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Gazebo is not used.");
+    }
+} 
 
 
 
 void MainNode::controlManager() {
     prepareWaypoints();
     pid_timer_->reset();
-
-    // stanley_controller_->run();
-    // PID();
 }
 
 
@@ -154,7 +170,9 @@ void MainNode::PID() {
     if (index_of_pose_ >= path_.poses.size()) {
         pid_timer_->cancel();
         RCLCPP_INFO_STREAM(this->get_logger(), "PID controller is ended.");
+        resetSystem();
     }
+
     // Desired pose
     geometry_msgs::msg::Pose desired_pose = path_.poses[index_of_pose_].pose;
     
@@ -165,29 +183,32 @@ void MainNode::PID() {
     linear_velocity_error_ = std::sqrt(std::pow(desired_pose.position.x - vehicle_pose.position.x, 2) + 
         std::pow(desired_pose.position.y - vehicle_pose.position.y, 2));
 
-    // Angular velocity error atan((y2 - y1) / (x2 - x1)) radians
+    // Desired angle via atan((y2 - y1) / (x2 - x1)) radians
     double desired_angle = atan2((desired_pose.position.y - vehicle_pose.position.y), 
         (desired_pose.position.x - vehicle_pose.position.x));
 
+    // Angular velocity error
     angular_velocity_error_ = desired_angle - yaw_;
-
     angular_velocity_error_ = atan2(sin(angular_velocity_error_), cos(angular_velocity_error_));
 
+    // Getting linear velocity signal from PID Controller
     auto [linear_velocity_signal_, vehicle_position_is_reached_] = linear_velocity_pid_controller_->getPIDControllerSignal(
-        linear_velocity_error_, 0.1);
+        linear_velocity_error_, dt_);
 
-    auto [angular_velocity_signal_, vehicle_orientation_is_reached_] = angular_velocity_pid_controller_->getPIDControllerSignal(angular_velocity_error_,
-        0.1);
+    // Getting angular velocity signal from PID Controller
+    auto [angular_velocity_signal_, vehicle_orientation_is_reached_] = angular_velocity_pid_controller_->getPIDControllerSignal(
+        angular_velocity_error_, dt_);
 
     RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity: " << linear_velocity_signal_);
     RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity: " << angular_velocity_signal_);
 
-
+    // Checking vehicle is reached to position or not.
     if(vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
         index_of_pose_++;
         RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
     }
 
+    // Preparing cmd vel message 
     cmd_vel_message_.linear.x = linear_velocity_signal_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
@@ -198,6 +219,7 @@ void MainNode::PID() {
 
     RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------");
 
+    // Publishing cmd vel message
     cmd_vel_publisher_->publish(cmd_vel_message_);
 }
 

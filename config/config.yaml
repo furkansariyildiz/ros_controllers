@@ -3,7 +3,7 @@
     PID:
       linear_velocity:
         Kp: 0.5
-        Ki: 0.0
+        Ki: 0.02
         Kd: 0.0
         error_threshold: 0.1
         signal_limit: 0.5
@@ -13,3 +13,4 @@
         Kd: 0.0
         error_threshold: 0.1
         signal_limit: 0.52359877559
+    sleep_time: 100 # miliseconds

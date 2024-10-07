@@ -12,10 +12,16 @@
 #include "ros_controllers/stanley.hpp"
 #include "ros_controllers/pid.hpp"
 
+// Messages
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 
+// Services
+#include <std_srvs/srv/empty.hpp>
+
+
+#define USE_GAZEBO          true
 
 
 class MainNode : public rclcpp::Node
@@ -24,6 +30,8 @@ class MainNode : public rclcpp::Node
         rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
 
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscriber_;
+
+        rclcpp::Client<std_srvs::srv::Empty>::SharedPtr reset_simulation_client_;
 
         std::unique_ptr<ROS2Controllers::StanleyController> stanley_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> linear_velocity_pid_controller_;
@@ -43,7 +51,10 @@ class MainNode : public rclcpp::Node
 
         double yaw_;
 
-        // PID Parameters
+        int sleep_time_;
+
+        double dt_;
+
         double Kp_linear_velocity_;
 
         double Ki_linear_velocity_;
@@ -85,11 +96,11 @@ class MainNode : public rclcpp::Node
 
         ~MainNode();
 
-        void init();
-
         void odometryCallback(const nav_msgs::msg::Odometry::SharedPtr message);
 
         void prepareWaypoints();
+
+        void resetSystem();
 
         void controlManager();
 

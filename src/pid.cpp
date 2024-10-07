@@ -33,7 +33,7 @@ std::pair<double, bool> ROS2Controllers::PIDController::getPIDControllerSignal(d
     double signal = P_ + I_ + D_;
 
     if (std::abs(error) <= error_threshold_) {
-        return std::make_pair(0.0, true);
+        return std::make_pair(signal, true);
     } 
 
     if (signal > signal_limit_) {
