@@ -2,13 +2,12 @@
 
 
 
-ROS2Controllers::StanleyController::StanleyController(const std::shared_ptr<rclcpp::Node> &node, double V, double K,
-                                                      double error_threshold, const nav_msgs::msg::Path path)
-    : node_(node), V_(V), K_(K), error_threshold_(error_threshold), path_(path) {
+ROS2Controllers::StanleyController::StanleyController(double V, double K, double 
+                                                      error_threshold, double signal_limit)
+    : V_(V), K_(K), error_threshold_(error_threshold), siganl_limit_(signal_limit) {
     // Subscribers
 
     // Publishers
-    cmd_vel_publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);    
 
     // Timers
 
@@ -22,39 +21,43 @@ ROS2Controllers::StanleyController::~StanleyController() {
 
 
 
-void ROS2Controllers::StanleyController::findEquationOfLine(int first_position_x, int first_position_y, 
-                                                            int second_position_x, int second_position_y) {
+std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyControllerSignal(double next_waypoint_x, double next_waypoint_y, 
+                                                                      double previous_waypoint_x, double previous_waypoint_y,
+                                                                      double vehicle_position_x, double vehicle_position_y,
+                                                                      double vehicle_yaw) {
+    double e_numerator = (next_waypoint_x - previous_waypoint_x) * (previous_waypoint_y - vehicle_position_y) -
+                        (previous_waypoint_x - vehicle_position_x) * (next_waypoint_y - previous_waypoint_y);
+
+    double e_denominator = std::sqrt(std::pow(next_waypoint_x - previous_waypoint_x, 2) + 
+                                    std::pow(next_waypoint_y - previous_waypoint_y, 2));
+
+    double error = e_numerator / e_denominator;
+
+    double theta_track = atan2(next_waypoint_y - previous_waypoint_y, next_waypoint_x - previous_waypoint_x);
     
-    line_slope_ = (second_position_y - first_position_y) / (second_position_x - first_position_x);
-    line_intercept_ = second_position_y - line_slope_ * second_position_x;
-}
+    double psi = theta_track - vehicle_yaw;
 
+    psi = atan2(sin(psi), cos(psi));
 
+    double track_steering_correction = atan2(K_ * error, V_);
 
-double ROS2Controllers::StanleyController::getStanleyControllerSignal(int vehicle_position_x, int vehicle_position_y, 
-                                                                      int vehicle_yaw) {
+    track_steering_correction = atan2(sin(track_steering_correction), cos(track_steering_correction));
 
-    double error = (vehicle_position_y - line_slope_ * vehicle_position_x - line_intercept_) / (sqrt(pow(-line_slope_, 2) + pow(1, 2)));
+    signal_ = psi + track_steering_correction;
 
-    double cross_track_steering = atan2(V_, K_ * error);
-
-    double heading_error = atan2(-(-line_slope_), 1) - vehicle_yaw; 
-
-    double signal = heading_error + cross_track_steering;
-
-    return signal;
-}
-
-
-
-void ROS2Controllers::StanleyController::run() {
-    RCLCPP_INFO_STREAM(node_->get_logger(), "Stanley run function.");
-
-    RCLCPP_INFO_STREAM(node_->get_logger(), "Length: " << path_.poses.size());
-    
-
-    for(const auto &pose : path_.poses) {
-        // RCLCPP_INFO_STREAM(node_->get_logger(), "Stanley run function.1");
+    if (std::abs(signal_) > siganl_limit_) {
+        if (signal_ > 0) {
+            signal_ = siganl_limit_;
+        } else {
+            signal_ = -siganl_limit_;
+        }
     }
+
+    if (std::abs(error) <= error_threshold_) {
+        return std::make_tuple(V_, 0.0, true);
+    }
+
+    return std::make_tuple(V_, signal_, false);
 }
+
 

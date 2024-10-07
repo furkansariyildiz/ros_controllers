@@ -4,7 +4,7 @@
 ROS2Controllers::PIDController::PIDController(double Kp, double Ki, double Kd,  
                                               double error_threshold, const double signal_limit)
     : Kp_(Kp), Ki_(Ki), Kd_(Kd), previous_error_(0.0), P_(0.0), I_(0.0), D_(0.0), 
-      error_threshold_(error_threshold), signal_limit_(signal_limit){
+      error_threshold_(error_threshold), signal_limit_(signal_limit) {
     // Subscribers
 
     // Publishers
@@ -46,6 +46,3 @@ std::pair<double, bool> ROS2Controllers::PIDController::getPIDControllerSignal(d
 }
 
 
-
-void ROS2Controllers::PIDController::run() {
-}

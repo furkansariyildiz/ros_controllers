@@ -55,11 +55,22 @@ MainNode::MainNode()
     signal_limit_angular_velocity_ = this->
         get_parameter("PID.angular_velocity.signal_limit").as_double();
 
+    // Stanley Controller Parameters
+    declare_parameter("Stanley.V", 1.0);
+    declare_parameter("Stanley.K", 0.5);
+    declare_parameter("Stanley.error_threshold", 0.1);
+    declare_parameter("Stanley.signal_limit", 0.5);
+
+    V_ = this->get_parameter("Stanley.V").as_double();
+    K_ = this->get_parameter("Stanley.K").as_double();
+    error_threshold_stanley_controller_ = this->
+        get_parameter("Stanley.error_threshold").as_double();
+    signal_limit_stanley_controller_ = this->
+        get_parameter("Stanley.signal_limit").as_double();
+    
     RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity limit: " << signal_limit_angular_velocity_);
     RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity limit: " << signal_limit_linear_velocity_);
 
-    // stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(
-    //    shared_from_this(), 1.0, 0.5, 0.1, example_path);
 
     // Linear Velocity PID Controller
     linear_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(Kp_linear_velocity_, 
@@ -69,6 +80,10 @@ MainNode::MainNode()
     angular_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(Kp_angular_velocity_, 
         Ki_angular_velocity_, Kd_angular_velocity_, error_threshold_angular_velocity_, signal_limit_angular_velocity_);
 
+    // Stanley Controller
+    stanley_controller_ = std::make_unique<ROS2Controllers::StanleyController>(V_, K_, error_threshold_stanley_controller_, 
+        signal_limit_stanley_controller_);
+    
     // Initialize class variables
     vehicle_position_is_reached_ = false;
     vehicle_orientation_is_reached_ = false;
@@ -77,6 +92,9 @@ MainNode::MainNode()
     // Timers
     pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
     pid_timer_->cancel();
+
+    stanley_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::stanley, this));
+    stanley_timer_->cancel();
 
     this->controlManager();
 }
@@ -132,6 +150,9 @@ void MainNode::prepareWaypoints() {
     }
 
     index_of_pose_ = 0;
+
+    previous_waypoint_ = path_.poses[index_of_pose_].pose;
+    next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
 }
 
 
@@ -155,13 +176,8 @@ void MainNode::resetSystem() {
 
 void MainNode::controlManager() {
     prepareWaypoints();
-    pid_timer_->reset();
-}
-
-
-
-void MainNode::stanley() {
-
+    //pid_timer_->reset();
+    stanley_timer_->reset();
 }
 
 
@@ -169,6 +185,7 @@ void MainNode::stanley() {
 void MainNode::PID() {
     if (index_of_pose_ >= path_.poses.size()) {
         pid_timer_->cancel();
+        stanley_timer_->reset();
         RCLCPP_INFO_STREAM(this->get_logger(), "PID controller is ended.");
         resetSystem();
     }
@@ -203,7 +220,7 @@ void MainNode::PID() {
     RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity: " << angular_velocity_signal_);
 
     // Checking vehicle is reached to position or not.
-    if(vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
+    if (vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
         index_of_pose_++;
         RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
     }
@@ -221,6 +238,36 @@ void MainNode::PID() {
 
     // Publishing cmd vel message
     cmd_vel_publisher_->publish(cmd_vel_message_);
+}
+
+
+
+void MainNode::stanley() {
+    if (index_of_pose_ >= path_.poses.size()) {
+        stanley_timer_->cancel();
+        RCLCPP_INFO_STREAM(this->get_logger(), "Stanley controller is ended.");
+        resetSystem();
+    }
+
+    // Vehicle pose
+    geometry_msgs::msg::Pose vehicle_pose = odometry_message_.pose.pose;
+
+    auto [linear_velocity_signal_, angular_velocity_signal_, vehicle_position_is_reached_] = stanley_controller_->
+        getStanleyControllerSignal(next_waypoint_.position.x, next_waypoint_.position.y, previous_waypoint_.position.x, 
+        previous_waypoint_.position.y, vehicle_pose.position.x, vehicle_pose.position.y, yaw_);
+
+    if (vehicle_position_is_reached_) {
+        previous_waypoint_ = path_.poses[index_of_pose_].pose;
+        next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
+        index_of_pose_++;
+        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+    }
+
+    // Preparing cmd vel message
+    cmd_vel_message_.linear.x = linear_velocity_signal_;
+    cmd_vel_message_.angular.z = angular_velocity_signal_;
+
+    cmd_vel_publisher_->publish(cmd_vel_message_);    
 }
 
 

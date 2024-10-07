@@ -38,6 +38,7 @@ class MainNode : public rclcpp::Node
         std::unique_ptr<ROS2Controllers::PIDController> angular_velocity_pid_controller_;
     
         rclcpp::TimerBase::SharedPtr pid_timer_;
+        rclcpp::TimerBase::SharedPtr stanley_timer_;
 
         nav_msgs::msg::Odometry odometry_message_;
 
@@ -55,6 +56,7 @@ class MainNode : public rclcpp::Node
 
         double dt_;
 
+        // PID Controller Parameters
         double Kp_linear_velocity_;
 
         double Ki_linear_velocity_;
@@ -83,11 +85,24 @@ class MainNode : public rclcpp::Node
 
         double angular_velocity_signal_;
 
+        // Stanley Controller Parameters
+        double V_;
+
+        double K_;
+
+        double error_threshold_stanley_controller_;
+
+        double signal_limit_stanley_controller_;
+
         int index_of_pose_;
 
         bool vehicle_position_is_reached_;
 
         bool vehicle_orientation_is_reached_;
+
+        geometry_msgs::msg::Pose previous_waypoint_;
+
+        geometry_msgs::msg::Pose next_waypoint_;
 
     protected:
 

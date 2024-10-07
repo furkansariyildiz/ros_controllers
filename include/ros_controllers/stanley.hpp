@@ -5,6 +5,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <iostream>
 #include <cmath>
+#include <utility>
+#include <tuple>
 
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -15,10 +17,6 @@ namespace ROS2Controllers
     class StanleyController
     {
         private: 
-            std::shared_ptr<rclcpp::Node> node_;
-
-            rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
-
             double line_slope_;
 
             double line_intercept_;
@@ -29,23 +27,23 @@ namespace ROS2Controllers
 
             double error_threshold_;
 
-            const nav_msgs::msg::Path path_;
+            double siganl_limit_;
+
+            double signal_;
 
         protected:
 
         public:
-            StanleyController(const std::shared_ptr<rclcpp::Node> &node, double V, double K, 
-                              double error_threshold, const nav_msgs::msg::Path path);
+            // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
+            // https://medium.com/roboquest/understanding-geometric-path-tracking-algorithms-stanley-controller-25da17bcc219
+            StanleyController(double V, double K, double error_threshold, double signal_limit);
 
             ~StanleyController();
 
-            void findEquationOfLine(int first_position_x, int first_position_y, 
-                                    int second_position_x, int second_position_y);
-
-            double getStanleyControllerSignal(int vehicle_position_x, int vehicle_position_y, 
-                                              int vehicle_yaw);
-
-            void run();
+            std::tuple<double, double, bool> getStanleyControllerSignal(double next_waypoint_x, double next_waypoint_y, 
+                                              double previous_waypoint_x, double previous_waypoint_y,
+                                              double vehicle_position_x, double vehicle_position_y,
+                                              double vehicle_yaw);
     };
 } // namespace ROS2Controllers
 

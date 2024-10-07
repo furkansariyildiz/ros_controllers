@@ -38,8 +38,6 @@ namespace ROS2Controllers
             ~PIDController();
 
             std::pair<double, bool> getPIDControllerSignal(double error, double dt);
-
-            void run();
     };
 } // namespace ROS2Controllers
 
