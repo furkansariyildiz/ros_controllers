@@ -45,6 +45,7 @@ class MainNode : public rclcpp::Node
     
         rclcpp::TimerBase::SharedPtr pid_timer_;
         rclcpp::TimerBase::SharedPtr stanley_timer_;
+        rclcpp::TimerBase::SharedPtr pure_pursuit_timer_;
 
         nav_msgs::msg::Odometry odometry_message_;
 
@@ -118,6 +119,8 @@ class MainNode : public rclcpp::Node
         double signal_limit_pure_pursuit_controller_;
 
         double vehicle_base_wiidth_;
+
+        bool vehicle_is_reached_;
 
     protected:
 

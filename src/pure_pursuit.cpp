@@ -33,7 +33,7 @@ void ROS2Controllers::PurePursuitController::findIndexOfNearestPoint() {
     int index = 0;
 
     for (int i=0; i<path_.size(); i++) {
-        double distance = findDistance(vehicle_position_x_, vehicle_position_y_, path_[i].position.x, path_[i].position.y);
+        double distance = findDistance(vehicle_position_x_, vehicle_position_y_, path_[i].pose.position.x, path_[i].pose.position.y);
 
         if (distance < min_distance) {
             min_distance = distance;
@@ -47,7 +47,7 @@ void ROS2Controllers::PurePursuitController::findIndexOfNearestPoint() {
 
 
 double ROS2Controllers::PurePursuitController::findDistanceViaIndex() {
-    return findDistance(vehicle_position_x_, vehicle_position_y_, path_[index_of_pose_].position.x, path_[index_of_pose_].position.y);
+    return findDistance(vehicle_position_x_, vehicle_position_y_, path_[index_of_pose_].pose.position.x, path_[index_of_pose_].pose.position.y);
 }
 
 
@@ -61,7 +61,7 @@ void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead(
 
 
 std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitSignal(const double vehicle_position_x, const double vehicle_position_y,
-    const double vehicle_yaw, const std::vector<geometry_msgs::msg::Pose> path) {
+    const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path) {
     
     path_ = path;
     vehicle_position_x_ = vehicle_position_x;
@@ -70,8 +70,8 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
     findIndexOfNearestPoint();
     findIndexOfClosestPointToLookAhead();
 
-    double target_x = path_[index_of_pose_].position.x;
-    double target_y = path_[index_of_pose_].position.y;
+    double target_x = path_[index_of_pose_].pose.position.x;
+    double target_y = path_[index_of_pose_].pose.position.y;
 
     double alpha = atan2(target_y - vehicle_position_y_, target_x - vehicle_position_x_) - vehicle_yaw;
 
@@ -93,5 +93,9 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
         }
     }
 
-    return std::make_tuple(0.0, false);
+    if (index_of_pose_ >= path_.size()) {
+        return std::make_tuple(angular_velocity, true);
+    }
+
+    return std::make_tuple(angular_velocity, false);
 }

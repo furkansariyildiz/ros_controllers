@@ -117,8 +117,11 @@ MainNode::MainNode()
     stanley_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::stanley, this));
     stanley_timer_->cancel();
 
+    pure_pursuit_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::purePursuit, this));
+    pure_pursuit_timer_->cancel();
+
     this->controlManager();
-}
+}   
 
 
 
@@ -197,8 +200,9 @@ void MainNode::resetSystem() {
 
 void MainNode::controlManager() {
     prepareWaypoints();
-    //pid_timer_->reset();
-    stanley_timer_->reset();
+    // pid_timer_->reset();
+    // stanley_timer_->reset();
+    pure_pursuit_timer_->reset();
 }
 
 
@@ -292,8 +296,26 @@ void MainNode::stanley() {
 }
 
 
-void MainNode::purePursuit() {
 
+void MainNode::purePursuit() {
+    auto [angular_velocity_signal_, vehicle_is_reached_] = pure_pursuite_controller_->getPurePursuitSignal(
+        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
+
+    if (vehicle_is_reached_) {
+        pure_pursuit_timer_->cancel();
+        RCLCPP_INFO_STREAM(this->get_logger(), "Pure-Pursuit controller is ended.");
+        resetSystem();
+    }
+    
+    // Preparing cmd vel message
+    /**
+     * @todo Linear velocity will be calculated from pure-pursuit controller. 
+     * For now, it is set to 0.5 m/s.
+     */
+    cmd_vel_message_.linear.x = 0.5;
+    cmd_vel_message_.angular.z = angular_velocity_signal_;
+
+    cmd_vel_publisher_->publish(cmd_vel_message_);
 }
 
 

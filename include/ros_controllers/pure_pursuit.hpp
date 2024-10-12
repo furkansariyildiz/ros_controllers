@@ -9,6 +9,7 @@
 
 // Messages
 #include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 
 
@@ -25,7 +26,7 @@ namespace ROS2Controllers
 
             double vehicle_position_y_;
 
-            std::vector<geometry_msgs::msg::Pose> path_;
+            std::vector<geometry_msgs::msg::PoseStamped> path_;
 
             const double error_threshold_;
 
@@ -51,7 +52,7 @@ namespace ROS2Controllers
 
 
             std::tuple<double, bool> getPurePursuitSignal(const double error, const double dt, 
-                const double vehicle_yaw, const std::vector<geometry_msgs::msg::Pose> path);
+                const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path);
     };
 } // namespace ROS2Controllers
 
