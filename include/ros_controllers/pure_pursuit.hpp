@@ -1,40 +1,57 @@
 #ifndef PURE_PURSUITE_HPP_
 #define PURE_PURSUITE_HPP_
 
+// ROS2 Libraries
 #include <rclcpp/rclcpp.hpp>
 #include <iostream>
 #include <cmath>
 #include <tuple>
 
+// Messages
+#include <geometry_msgs/msg/pose.hpp>
+
+
 
 namespace ROS2Controllers
 {
-    class PurePursuiteController
+    class PurePursuitController
     {
         private:
-            double Kp_;
+            double look_ahead_distance_;
 
-            double Ki_;
+            double vehicle_base_width_;
 
-            double Kd_;
+            double vehicle_position_x_;
 
-            double previous_error_;
+            double vehicle_position_y_;
 
-            double P_, I_, D_;
+            std::vector<geometry_msgs::msg::Pose> path_;
 
             const double error_threshold_;
 
             const double signal_limit_;
 
+            int index_of_pose_;
+
         protected:
 
         public:
-            PurePursuiteController(double Kp, double Ki, double Kd, 
-                        double error_threshold, const double signal_limit);
+            PurePursuitController(const double look_ahead_distance, const double vehicle_base_width, 
+                const double error_threshold, const double signal_limit);
     
-            ~PurePursuiteController();
+            ~PurePursuitController();
 
-            std::tuple<double, double, bool> getPurePursuiteSignal(double error, double dt);
+            double findDistance(const double x1, const double y1, const double x2, const double y2);
+
+            void findIndexOfNearestPoint(void);
+            
+            double findDistanceViaIndex(void);
+            
+            void findIndexOfClosestPointToLookAhead(void);
+
+
+            std::tuple<double, bool> getPurePursuitSignal(const double error, const double dt, 
+                const double vehicle_yaw, const std::vector<geometry_msgs::msg::Pose> path);
     };
 } // namespace ROS2Controllers
 

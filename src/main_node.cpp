@@ -71,7 +71,24 @@ MainNode::MainNode()
     RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity limit: " << signal_limit_angular_velocity_);
     RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity limit: " << signal_limit_linear_velocity_);
 
+    // Pure-Pursuit Controller Parameters
+    declare_parameter("PurePursuit.look_ahead_distance", 2.0);
+    declare_parameter("PurePursuit.error_threshold", 0.1);
+    declare_parameter("PurePursuit.signal_limit", 0.5);
+    declare_parameter("PurePursuit.vehicle_base_width", 0.5);
 
+    look_ahead_distance_pure_pursuit_controller_ = this->
+        get_parameter("PurePursuit.look_ahead_distance").as_double();
+
+    error_threshold_pure_pursuit_controller_ = this->
+        get_parameter("PurePursuit.error_threshold").as_double();
+
+    signal_limit_pure_pursuit_controller_ = this->
+        get_parameter("PurePursuit.signal_limit").as_double();
+
+    vehicle_base_wiidth_ = this->
+        get_parameter("PurePursuit.vehicle_base_width").as_double();
+    
     // Linear Velocity PID Controller
     linear_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(Kp_linear_velocity_, 
         Ki_linear_velocity_, Kd_linear_velocity_, error_threshold_linear_velocity_, signal_limit_linear_velocity_);
@@ -85,7 +102,8 @@ MainNode::MainNode()
         signal_limit_stanley_controller_);
 
     // Pure-Pursuit Controller
-    pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuiteController>(0.0, 0.0, 0.0, 0.0, 0.0);
+    pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuitController>(look_ahead_distance_pure_pursuit_controller_, 
+        vehicle_base_wiidth_, error_threshold_pure_pursuit_controller_, signal_limit_pure_pursuit_controller_);
     
     // Initialize class variables
     vehicle_position_is_reached_ = false;
@@ -271,6 +289,11 @@ void MainNode::stanley() {
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
     cmd_vel_publisher_->publish(cmd_vel_message_);    
+}
+
+
+void MainNode::purePursuit() {
+
 }
 
 

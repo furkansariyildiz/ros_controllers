@@ -41,7 +41,7 @@ class MainNode : public rclcpp::Node
         std::unique_ptr<ROS2Controllers::StanleyController> stanley_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> linear_velocity_pid_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> angular_velocity_pid_controller_;
-        std::unique_ptr<ROS2Controllers::PurePursuiteController> pure_pursuite_controller_;
+        std::unique_ptr<ROS2Controllers::PurePursuitController> pure_pursuite_controller_;
     
         rclcpp::TimerBase::SharedPtr pid_timer_;
         rclcpp::TimerBase::SharedPtr stanley_timer_;
@@ -110,6 +110,15 @@ class MainNode : public rclcpp::Node
 
         geometry_msgs::msg::Pose next_waypoint_;
 
+        // Pure-Pursuit Controller Parameters
+        double look_ahead_distance_pure_pursuit_controller_;
+
+        double error_threshold_pure_pursuit_controller_;
+
+        double signal_limit_pure_pursuit_controller_;
+
+        double vehicle_base_wiidth_;
+
     protected:
 
     public:
@@ -125,9 +134,11 @@ class MainNode : public rclcpp::Node
 
         void controlManager();
 
+        void PID();
+
         void stanley();
 
-        void PID();
+        void purePursuit();
 };
 
 
