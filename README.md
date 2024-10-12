@@ -1,7 +1,7 @@
 # ROS Controllers
-+ MPC
-+ PID
-+ Pure Pursuit
-+ Stanley
++ [ ]  MPC 
++ [x] PID
++ [x] Pure Pursuit
++ [x] Stanley
 
 . /usr/share/gazebo/setup.sh
