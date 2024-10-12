@@ -112,7 +112,7 @@ class MainNode : public rclcpp::Node
         geometry_msgs::msg::Pose next_waypoint_;
 
         // Pure-Pursuit Controller Parameters
-        double look_ahead_distance_pure_pursuit_controller_;
+        double lookahead_distance_pure_pursuit_controller_;
 
         double error_threshold_pure_pursuit_controller_;
 

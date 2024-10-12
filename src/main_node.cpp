@@ -68,17 +68,14 @@ MainNode::MainNode()
     signal_limit_stanley_controller_ = this->
         get_parameter("Stanley.signal_limit").as_double();
     
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity limit: " << signal_limit_angular_velocity_);
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity limit: " << signal_limit_linear_velocity_);
-
     // Pure-Pursuit Controller Parameters
-    declare_parameter("PurePursuit.look_ahead_distance", 2.0);
+    declare_parameter("PurePursuit.lookahead_distance", 2.0);
     declare_parameter("PurePursuit.error_threshold", 0.1);
     declare_parameter("PurePursuit.signal_limit", 0.5);
     declare_parameter("PurePursuit.vehicle_base_width", 0.5);
 
-    look_ahead_distance_pure_pursuit_controller_ = this->
-        get_parameter("PurePursuit.look_ahead_distance").as_double();
+    lookahead_distance_pure_pursuit_controller_ = this->
+        get_parameter("PurePursuit.lookahead_distance").as_double();
 
     error_threshold_pure_pursuit_controller_ = this->
         get_parameter("PurePursuit.error_threshold").as_double();
@@ -102,7 +99,7 @@ MainNode::MainNode()
         signal_limit_stanley_controller_);
 
     // Pure-Pursuit Controller
-    pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuitController>(look_ahead_distance_pure_pursuit_controller_, 
+    pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuitController>(lookahead_distance_pure_pursuit_controller_, 
         vehicle_base_wiidth_, error_threshold_pure_pursuit_controller_, signal_limit_pure_pursuit_controller_);
     
     // Initialize class variables

@@ -2,9 +2,9 @@
 
 
 
-ROS2Controllers::PurePursuitController::PurePursuitController(const double look_ahead_distance, const double vehicle_base_width,
+ROS2Controllers::PurePursuitController::PurePursuitController(const double lookahead_distance, const double vehicle_base_width,
     const double error_threshold, const double signal_limit)
-    : look_ahead_distance_(look_ahead_distance), vehicle_base_width_(vehicle_base_width), error_threshold_(error_threshold), 
+    : lookahead_distance_(lookahead_distance), vehicle_base_width_(vehicle_base_width), error_threshold_(error_threshold), 
       signal_limit_(signal_limit), index_of_pose_(0) {
     // Subscribers
 
@@ -53,7 +53,7 @@ double ROS2Controllers::PurePursuitController::findDistanceViaIndex() {
 
 
 void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead() {
-    while (findDistanceViaIndex() < look_ahead_distance_) {
+    while (findDistanceViaIndex() < lookahead_distance_) {
         index_of_pose_++;
     }
 }
@@ -96,6 +96,8 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
     if (index_of_pose_ >= path_.size()) {
         return std::make_tuple(angular_velocity, true);
     }
+
+    std::cout << "Distance (ld): " << ld << std::endl;
 
     return std::make_tuple(angular_velocity, false);
 }

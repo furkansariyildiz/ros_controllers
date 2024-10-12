@@ -18,7 +18,7 @@ namespace ROS2Controllers
     class PurePursuitController
     {
         private:
-            double look_ahead_distance_;
+            double lookahead_distance_;
 
             double vehicle_base_width_;
 
@@ -37,7 +37,7 @@ namespace ROS2Controllers
         protected:
 
         public:
-            PurePursuitController(const double look_ahead_distance, const double vehicle_base_width, 
+            PurePursuitController(const double lookahead_distance, const double vehicle_base_width, 
                 const double error_threshold, const double signal_limit);
     
             ~PurePursuitController();
@@ -49,7 +49,6 @@ namespace ROS2Controllers
             double findDistanceViaIndex(void);
             
             void findIndexOfClosestPointToLookAhead(void);
-
 
             std::tuple<double, bool> getPurePursuitSignal(const double error, const double dt, 
                 const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path);
