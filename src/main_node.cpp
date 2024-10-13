@@ -16,7 +16,10 @@ MainNode::MainNode()
 
     // Parameters
     declare_parameter("sleep_time", 100);
+    declare_parameter("csv_folder_name", "/home/furkan/Documents/csv_files/results/");
+
     sleep_time_ = this->get_parameter("sleep_time").as_int();
+    csv_folder_name_ = this->get_parameter("csv_folder_name").as_string();
 
     // PID (linear velocity controller)
     declare_parameter("PID.linear_velocity.Kp", 0.5);
@@ -35,7 +38,6 @@ MainNode::MainNode()
         get_parameter("PID.linear_velocity.error_threshold").as_double();
     signal_limit_linear_velocity_ = this->
         get_parameter("PID.linear_velocity.signal_limit").as_double();
-
 
     // PID (angular velocity controller)
     declare_parameter("PID.angular_velocity.Kp", 0.5);
@@ -174,6 +176,11 @@ void MainNode::prepareWaypoints() {
 
     previous_waypoint_ = path_.poses[index_of_pose_].pose;
     next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
+
+    // Pushing desired poses for visualization
+    for (int i=0; i<path_.poses.size(); i++) {
+        desired_poses_.push_back(path_.poses[i].pose);
+    }
 }
 
 
@@ -209,6 +216,7 @@ void MainNode::PID() {
         pid_timer_->cancel();
         stanley_timer_->reset();
         RCLCPP_INFO_STREAM(this->get_logger(), "PID controller is ended.");
+        writeAndPlotResults("pid");
         resetSystem();
     }
 
@@ -268,6 +276,7 @@ void MainNode::stanley() {
     if (index_of_pose_ >= path_.poses.size()) {
         stanley_timer_->cancel();
         RCLCPP_INFO_STREAM(this->get_logger(), "Stanley controller is ended.");
+        writeAndPlotResults("stanley");
         resetSystem();
     }
 
@@ -301,6 +310,7 @@ void MainNode::purePursuit() {
     if (vehicle_is_reached_) {
         pure_pursuit_timer_->cancel();
         RCLCPP_INFO_STREAM(this->get_logger(), "Pure-Pursuit controller is ended.");
+        writeAndPlotResults("pure_pursuit");
         resetSystem();
     }
     
@@ -313,6 +323,38 @@ void MainNode::purePursuit() {
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
     cmd_vel_publisher_->publish(cmd_vel_message_);
+
+    // Saving vehicle poses for visualization
+    vehicle_poses_.push_back(odometry_message_.pose.pose);
+}
+
+
+
+void MainNode::writeAndPlotResults(const std::string test_name) {
+    // Writing vehicle poses and desired poses to csv file
+    result_path_csv_file_.open(csv_folder_name_ + "result_" + test_name + ".csv");
+    desired_path_csv_file_.open(csv_folder_name_ + "desired_" + test_name + ".csv");
+
+    if (result_path_csv_file_.is_open() && desired_path_csv_file_.is_open()) {
+        result_path_csv_file_ << "vehicle_x,vehicle_y,vehicle_z" << std::endl;
+        
+        for (int i=0; i<vehicle_poses_.size(); i++) {
+            result_path_csv_file_ << vehicle_poses_[i].position.x << "," << vehicle_poses_[i].position.y << "," << 
+                vehicle_poses_[i].position.z << std::endl;
+        }
+
+        desired_path_csv_file_ << "desired_x,desired_y,desired_z" << std::endl;
+
+        for (int i=0; i<desired_poses_.size(); i++) {
+            desired_path_csv_file_ << desired_poses_[i].position.x << "," << desired_poses_[i].position.y << "," << 
+                desired_poses_[i].position.z << std::endl;
+        }
+
+        result_path_csv_file_.close();
+        desired_path_csv_file_.close();
+    } else {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "File is not opened.");
+    }
 }
 
 

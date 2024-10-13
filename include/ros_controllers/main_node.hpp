@@ -5,9 +5,13 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/time.hpp>
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <chrono>
+
 
 // ROS2 Controller Libraries
 #include "ros_controllers/pid.hpp"
@@ -52,6 +56,9 @@ class MainNode : public rclcpp::Node
         geometry_msgs::msg::Twist cmd_vel_message_;
 
         nav_msgs::msg::Path path_;
+
+        std::vector<geometry_msgs::msg::Pose> desired_poses_;
+        std::vector<geometry_msgs::msg::Pose> vehicle_poses_;
 
         double roll_;
 
@@ -122,6 +129,11 @@ class MainNode : public rclcpp::Node
 
         bool vehicle_is_reached_;
 
+        std::ofstream result_path_csv_file_;
+        std::ofstream desired_path_csv_file_;
+
+        std::string csv_folder_name_;
+
     protected:
 
     public:
@@ -142,6 +154,8 @@ class MainNode : public rclcpp::Node
         void stanley();
 
         void purePursuit();
+
+        void writeAndPlotResults(const std::string test_name);
 };
 
 

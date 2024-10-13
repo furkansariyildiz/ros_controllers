@@ -24,3 +24,4 @@
       signal_limit: 0.52359877559
       vehicle_base_width: 0.5
     sleep_time: 100 # miliseconds
+    csv_folder_name: "/home/furkan/controller_ws/src/ros_controllers/results/"
