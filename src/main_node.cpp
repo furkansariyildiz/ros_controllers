@@ -191,6 +191,9 @@ void MainNode::resetSystem() {
     cmd_vel_message_.angular.z = 0.0;
     cmd_vel_publisher_->publish(cmd_vel_message_);
 
+    // Resetting vehicle poses 
+    vehicle_poses_.clear();
+
     // Reset Gazebo Simulation
     if (USE_GAZEBO) {
         auto empty_request = std::make_shared<std_srvs::srv::Empty::Request>();
@@ -205,8 +208,8 @@ void MainNode::resetSystem() {
 void MainNode::controlManager() {
     prepareWaypoints();
     // pid_timer_->reset();
-    // stanley_timer_->reset();
-    pure_pursuit_timer_->reset();
+    stanley_timer_->reset();
+    // pure_pursuit_timer_->reset();
 }
 
 
@@ -268,6 +271,9 @@ void MainNode::PID() {
 
     // Publishing cmd vel message
     cmd_vel_publisher_->publish(cmd_vel_message_);
+
+    // Saving vehicle poses for visualization
+    vehicle_poses_.push_back(odometry_message_.pose.pose);
 }
 
 
@@ -298,7 +304,10 @@ void MainNode::stanley() {
     cmd_vel_message_.linear.x = linear_velocity_signal_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
-    cmd_vel_publisher_->publish(cmd_vel_message_);    
+    cmd_vel_publisher_->publish(cmd_vel_message_);   
+
+    // Saving vehicle poses for visualization
+    vehicle_poses_.push_back(odometry_message_.pose.pose); 
 }
 
 

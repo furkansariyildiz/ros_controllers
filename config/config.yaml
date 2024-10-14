@@ -14,8 +14,8 @@
         error_threshold: 0.1
         signal_limit: 0.52359877559
     Stanley:
-      V: 0.5  
-      K: 0.25
+      V: 0.25  
+      K: 0.5
       error_threshold: 0.1
       signal_limit: 0.52359877559
     PurePursuit:

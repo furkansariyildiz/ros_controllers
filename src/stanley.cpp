@@ -31,6 +31,9 @@ std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyC
     double e_denominator = std::sqrt(std::pow(next_waypoint_x - previous_waypoint_x, 2) + 
                                     std::pow(next_waypoint_y - previous_waypoint_y, 2));
 
+    double linear_error = std::sqrt(std::pow(next_waypoint_x - vehicle_position_x, 2) + 
+                                  std::pow(next_waypoint_y - vehicle_position_y, 2));
+
     double error = e_numerator / e_denominator;
 
     double theta_track = atan2(next_waypoint_y - previous_waypoint_y, next_waypoint_x - previous_waypoint_x);
@@ -53,7 +56,9 @@ std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyC
         }
     }
 
-    if (std::abs(error) <= error_threshold_) {
+    std::cout << "Linear error: " << linear_error << std::endl;
+
+    if (std::abs(linear_error) <= error_threshold_) {
         return std::make_tuple(V_, 0.0, true);
     }
 
