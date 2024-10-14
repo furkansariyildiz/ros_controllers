@@ -52,5 +52,7 @@ class Plotter:
 
 if __name__ == '__main__':
     plotter = Plotter()
-    plotter.read_csv('/home/furkan/controller_ws/src/ros_controllers/results/result_pure_pursuit.csv', '/home/furkan/controller_ws/src/ros_controllers/results/desired_pure_pursuit.csv')
+    # plotter.read_csv('/home/furkan/controller_ws/src/ros_controllers/results/result_pid.csv', '/home/furkan/controller_ws/src/ros_controllers/results/desired_pid.csv')
+    plotter.read_csv('/home/furkan/controller_ws/src/ros_controllers/results/result_stanley.csv', '/home/furkan/controller_ws/src/ros_controllers/results/desired_stanley.csv')
+    # plotter.read_csv('/home/furkan/controller_ws/src/ros_controllers/results/result_pure_pursuit.csv', '/home/furkan/controller_ws/src/ros_controllers/results/desired_pure_pursuit.csv')
 
