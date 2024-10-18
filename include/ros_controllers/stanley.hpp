@@ -31,6 +31,8 @@ namespace ROS2Controllers
 
             double signal_;
 
+            double linear_error_;
+
         protected:
 
         public:
@@ -39,6 +41,8 @@ namespace ROS2Controllers
             StanleyController(double V, double K, double error_threshold, double signal_limit);
 
             ~StanleyController();
+
+            double getLinearError();
 
             std::tuple<double, double, bool> getStanleyControllerSignal(double next_waypoint_x, double next_waypoint_y, 
                                               double previous_waypoint_x, double previous_waypoint_y,

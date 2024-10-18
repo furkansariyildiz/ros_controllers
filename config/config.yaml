@@ -15,8 +15,8 @@
         signal_limit: 0.52359877559
     Stanley:
       V: 0.25  
-      K: 0.5
-      error_threshold: 0.1
+      K: 0.8
+      error_threshold: 0.05
       signal_limit: 0.52359877559
     PurePursuit:
       lookahead_distance: 0.5
@@ -24,4 +24,4 @@
       signal_limit: 0.52359877559
       vehicle_base_width: 0.5
     sleep_time: 100 # miliseconds
-    csv_folder_name: "/home/furkan/controller_ws/src/ros_controllers/results/"
+    csv_folder_name: "/home/locint/ros_controllers_ws/src/ros_controllers/results/"

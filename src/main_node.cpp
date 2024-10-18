@@ -274,6 +274,9 @@ void MainNode::PID() {
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
+
+    // Saving errors for visualization
+    errors_.push_back(linear_velocity_error_);
 }
 
 
@@ -308,6 +311,9 @@ void MainNode::stanley() {
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose); 
+
+    // Saving errors for visualization
+    errors_.push_back(stanley_controller_->getLinearError());
 }
 
 
@@ -335,6 +341,9 @@ void MainNode::purePursuit() {
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
+
+    // Saving errors for visualization
+    errors_.push_back(linear_velocity_error_);
 }
 
 
@@ -343,8 +352,9 @@ void MainNode::writeAndPlotResults(const std::string test_name) {
     // Writing vehicle poses and desired poses to csv file
     result_path_csv_file_.open(csv_folder_name_ + "result_" + test_name + ".csv");
     desired_path_csv_file_.open(csv_folder_name_ + "desired_" + test_name + ".csv");
+    error_between_desired_and_result_csv_file_.open(csv_folder_name_ + "error_" + test_name + ".csv");
 
-    if (result_path_csv_file_.is_open() && desired_path_csv_file_.is_open()) {
+    if (result_path_csv_file_.is_open() && desired_path_csv_file_.is_open() && error_between_desired_and_result_csv_file_.is_open()) {
         result_path_csv_file_ << "vehicle_x,vehicle_y,vehicle_z" << std::endl;
         
         for (int i=0; i<vehicle_poses_.size(); i++) {
@@ -359,8 +369,15 @@ void MainNode::writeAndPlotResults(const std::string test_name) {
                 desired_poses_[i].position.z << std::endl;
         }
 
+        error_between_desired_and_result_csv_file_ << "error" << std::endl;
+
+        for (int i=0; i<errors_.size(); i++) {
+            error_between_desired_and_result_csv_file_ << errors_[i] << std::endl;
+        }
+
         result_path_csv_file_.close();
         desired_path_csv_file_.close();
+        error_between_desired_and_result_csv_file_.close();
     } else {
         RCLCPP_ERROR_STREAM(this->get_logger(), "File is not opened.");
     }
