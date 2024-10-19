@@ -14,6 +14,8 @@
 
 
 // ROS2 Controller Libraries
+// #include "ros_controllers/mpc.hpp"
+#include "ros_controllers/mpc_controller.hpp"
 #include "ros_controllers/pid.hpp"
 #include "ros_controllers/stanley.hpp"
 #include "ros_controllers/pure_pursuit.hpp"
@@ -46,6 +48,7 @@ class MainNode : public rclcpp::Node
         std::unique_ptr<ROS2Controllers::PIDController> linear_velocity_pid_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> angular_velocity_pid_controller_;
         std::unique_ptr<ROS2Controllers::PurePursuitController> pure_pursuite_controller_;
+        std::unique_ptr<ROS2Controllers::MPCController> mpc_controller_;
     
         rclcpp::TimerBase::SharedPtr pid_timer_;
         rclcpp::TimerBase::SharedPtr stanley_timer_;

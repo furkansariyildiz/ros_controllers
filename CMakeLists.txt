@@ -16,10 +16,12 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(casadi REQUIRED)
 
 include_directories(include {catkin_INCLUDE_DIRS})
 
 add_library(ros_controllers STATIC
+            src/mpc.cpp
             src/pid.cpp
             src/stanley.cpp
             src/pure_pursuit.cpp
@@ -29,6 +31,7 @@ add_executable(ros_controllers_node src/main_node.cpp)
 
 target_link_libraries(ros_controllers
                       ${catkin_LIBRARIES}
+                      casadi
 
 )     
 
@@ -37,6 +40,7 @@ ament_target_dependencies(ros_controllers rclcpp rclpy tf2 nav_msgs geometry_msg
 target_link_libraries(ros_controllers_node 
                       ${catkin_LIBRARIES}
                       ros_controllers
+                      casadi
 )
 
 install(TARGETS

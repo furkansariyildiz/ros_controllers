@@ -4,6 +4,8 @@
 + [x] Pure Pursuit
 + [x] Stanley
 
+**MPC library uses casadi and eigen libraries**
+
 This results are getted via this config;
 ```yaml
 /ros_controllers_node:
@@ -91,3 +93,5 @@ This results are getted via this config;
 <p align="center">
   <img src="results/pure_pursuit/pure-pursuit-discrete-error.png" style="width: 100%; height: 100%"/>
 </p>
+
+

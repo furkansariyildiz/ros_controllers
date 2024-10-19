@@ -409,5 +409,33 @@ int main(int argc, char *argv[]) {
     rclcpp::spin(main_node);
     rclcpp::shutdown();
 
+/**
+ *     // MPC kontrolcüsünün oluşturulması
+    double dt = 0.1;       // Zaman adımı (saniye)
+    int horizon = 10;      // Öngörü horizonu
+    double L = 2.5;        // Aracın dingil mesafesi (metre)
+
+    MPCController mpc(dt, horizon, L);
+
+    // Başlangıç durumu
+    Eigen::VectorXd state(3);
+    state << 0.0, 0.0, 0.0;  // x, y, theta
+
+    // Referans yörüngenin oluşturulması
+    std::vector<Eigen::VectorXd> reference_trajectory;
+    for (int k = 0; k < horizon + 1; ++k) {
+        Eigen::VectorXd ref_state(3);
+        ref_state << 0.5 * k * dt, 1.0, 0.0;  // Basit bir doğrusal yörünge
+        reference_trajectory.push_back(ref_state);
+    }
+
+    // Kontrol sinyallerinin hesaplanması
+    auto [optimal_velocity, optimal_steering_angle] = mpc.computeControlSignal(state, reference_trajectory);
+
+    // Sonuçların yazdırılması
+    std::cout << "Optimal Velocity: " << optimal_velocity << std::endl;
+    std::cout << "Optimal Steering Angle: " << optimal_steering_angle << std::endl;
+ */
+
     return 0;
 }
