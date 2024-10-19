@@ -34,6 +34,12 @@ namespace ROS2Controllers
 
             int index_of_pose_;
 
+            int previous_index_of_pose_;
+
+            double continous_linear_error_;
+
+            double discrete_linear_error_;
+
         protected:
 
         public:
@@ -41,6 +47,10 @@ namespace ROS2Controllers
                 const double error_threshold, const double signal_limit);
     
             ~PurePursuitController();
+
+            double getContinousLinearError(void) const;
+
+            double getDiscreteLinearError(void) const;
 
             double findDistance(const double x1, const double y1, const double x2, const double y2);
 

@@ -207,8 +207,8 @@ void MainNode::resetSystem() {
 
 void MainNode::controlManager() {
     prepareWaypoints();
-    // pid_timer_->reset();
-    stanley_timer_->reset();
+    pid_timer_->reset();
+    // stanley_timer_->reset();
     // pure_pursuit_timer_->reset();
 }
 
@@ -255,6 +255,9 @@ void MainNode::PID() {
     // Checking vehicle is reached to position or not.
     if (vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
         index_of_pose_++;
+
+        // Saving discrete errors for visualization
+        discrete_errors_.push_back(linear_velocity_error_);
         RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
     }
 
@@ -275,8 +278,8 @@ void MainNode::PID() {
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
 
-    // Saving errors for visualization
-    errors_.push_back(linear_velocity_error_);
+    // Saving continous errors for visualization
+    continuous_errors_.push_back(linear_velocity_error_);
 }
 
 
@@ -300,6 +303,9 @@ void MainNode::stanley() {
         previous_waypoint_ = path_.poses[index_of_pose_].pose;
         next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
         index_of_pose_++;
+
+        // Saving discrete errors for visualization
+        discrete_errors_.push_back(stanley_controller_->getLinearError());
         RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
     }
 
@@ -312,8 +318,8 @@ void MainNode::stanley() {
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose); 
 
-    // Saving errors for visualization
-    errors_.push_back(stanley_controller_->getLinearError());
+    // Saving continous errors for visualization
+    continuous_errors_.push_back(stanley_controller_->getLinearError());
 }
 
 
@@ -342,8 +348,11 @@ void MainNode::purePursuit() {
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
 
-    // Saving errors for visualization
-    errors_.push_back(linear_velocity_error_);
+    // Saving continuous errors for visualization
+    continuous_errors_.push_back(pure_pursuite_controller_->getContinousLinearError());
+    
+    // Saving discrete errors for visualization
+    discrete_errors_.push_back(pure_pursuite_controller_->getDiscreteLinearError());
 }
 
 
@@ -352,9 +361,10 @@ void MainNode::writeAndPlotResults(const std::string test_name) {
     // Writing vehicle poses and desired poses to csv file
     result_path_csv_file_.open(csv_folder_name_ + "result_" + test_name + ".csv");
     desired_path_csv_file_.open(csv_folder_name_ + "desired_" + test_name + ".csv");
-    error_between_desired_and_result_csv_file_.open(csv_folder_name_ + "error_" + test_name + ".csv");
+    continuous_error_csv_file_.open(csv_folder_name_ + "continuous_error_" + test_name + ".csv");
+    discrete_error_csv_file_.open(csv_folder_name_ + "discrete_error_" + test_name + ".csv");
 
-    if (result_path_csv_file_.is_open() && desired_path_csv_file_.is_open() && error_between_desired_and_result_csv_file_.is_open()) {
+    if (result_path_csv_file_.is_open() && desired_path_csv_file_.is_open() && continuous_error_csv_file_.is_open()) {
         result_path_csv_file_ << "vehicle_x,vehicle_y,vehicle_z" << std::endl;
         
         for (int i=0; i<vehicle_poses_.size(); i++) {
@@ -369,15 +379,22 @@ void MainNode::writeAndPlotResults(const std::string test_name) {
                 desired_poses_[i].position.z << std::endl;
         }
 
-        error_between_desired_and_result_csv_file_ << "error" << std::endl;
+        continuous_error_csv_file_ << "error" << std::endl;
 
-        for (int i=0; i<errors_.size(); i++) {
-            error_between_desired_and_result_csv_file_ << errors_[i] << std::endl;
+        for (int i=0; i<continuous_errors_.size(); i++) {
+            continuous_error_csv_file_ << continuous_errors_[i] << std::endl;
+        }
+
+        discrete_error_csv_file_ << "error" << std::endl;
+
+        for (int i=0; i<discrete_errors_.size(); i++) {
+            discrete_error_csv_file_ << discrete_errors_[i] << std::endl;
         }
 
         result_path_csv_file_.close();
         desired_path_csv_file_.close();
-        error_between_desired_and_result_csv_file_.close();
+        continuous_error_csv_file_.close();
+        discrete_error_csv_file_.close();
     } else {
         RCLCPP_ERROR_STREAM(this->get_logger(), "File is not opened.");
     }

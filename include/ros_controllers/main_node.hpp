@@ -59,7 +59,8 @@ class MainNode : public rclcpp::Node
 
         std::vector<geometry_msgs::msg::Pose> desired_poses_;
         std::vector<geometry_msgs::msg::Pose> vehicle_poses_;
-        std::vector<double> errors_;
+        std::vector<double> continuous_errors_;
+        std::vector<double> discrete_errors_;
 
         double roll_;
 
@@ -132,7 +133,8 @@ class MainNode : public rclcpp::Node
 
         std::ofstream result_path_csv_file_;
         std::ofstream desired_path_csv_file_;
-        std::ofstream error_between_desired_and_result_csv_file_;
+        std::ofstream continuous_error_csv_file_;
+        std::ofstream discrete_error_csv_file_;
 
         std::string csv_folder_name_;
 
