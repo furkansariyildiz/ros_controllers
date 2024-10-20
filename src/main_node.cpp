@@ -17,9 +17,11 @@ MainNode::MainNode()
     // Parameters
     declare_parameter("sleep_time", 100);
     declare_parameter("csv_folder_name", "/home/furkan/Documents/csv_files/results/");
+    declare_parameter("vehicle_base_width", 0.5);
 
     sleep_time_ = this->get_parameter("sleep_time").as_int();
     csv_folder_name_ = this->get_parameter("csv_folder_name").as_string();
+    vehicle_base_wiidth_ = this->get_parameter("vehicle_base_width").as_double();
 
     // PID (linear velocity controller)
     declare_parameter("PID.linear_velocity.Kp", 0.5);
@@ -74,7 +76,6 @@ MainNode::MainNode()
     declare_parameter("PurePursuit.lookahead_distance", 2.0);
     declare_parameter("PurePursuit.error_threshold", 0.1);
     declare_parameter("PurePursuit.signal_limit", 0.5);
-    declare_parameter("PurePursuit.vehicle_base_width", 0.5);
 
     lookahead_distance_pure_pursuit_controller_ = this->
         get_parameter("PurePursuit.lookahead_distance").as_double();
@@ -85,9 +86,25 @@ MainNode::MainNode()
     signal_limit_pure_pursuit_controller_ = this->
         get_parameter("PurePursuit.signal_limit").as_double();
 
-    vehicle_base_wiidth_ = this->
-        get_parameter("PurePursuit.vehicle_base_width").as_double();
+    // MPC Controller Parameters
+    declare_parameter("MPC.horizon", 10);
+    declare_parameter("MPC.error_threshold", 0.1);
+    declare_parameter("MPC.signal_limit", 0.5);
+
+    horizon_mpc_controller_ = this->
+        get_parameter("MPC.horizon").as_int();
+
+    error_threshold_mpc_controller_ = this->
+        get_parameter("MPC.error_threshold").as_double();
+
+    signal_limit_mpc_controller_ = this->
+        get_parameter("MPC.signal_limit").as_double();
     
+    // Initialize class variables
+    vehicle_position_is_reached_ = false;
+    vehicle_orientation_is_reached_ = false;
+    dt_ = sleep_time_ / 1000.0;
+
     // Linear Velocity PID Controller
     linear_velocity_pid_controller_ = std::make_unique<ROS2Controllers::PIDController>(Kp_linear_velocity_, 
         Ki_linear_velocity_, Kd_linear_velocity_, error_threshold_linear_velocity_, signal_limit_linear_velocity_);
@@ -103,11 +120,11 @@ MainNode::MainNode()
     // Pure-Pursuit Controller
     pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuitController>(lookahead_distance_pure_pursuit_controller_, 
         vehicle_base_wiidth_, error_threshold_pure_pursuit_controller_, signal_limit_pure_pursuit_controller_);
+
+    // MPC Controller
+    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
+        signal_limit_mpc_controller_, dt_);
     
-    // Initialize class variables
-    vehicle_position_is_reached_ = false;
-    vehicle_orientation_is_reached_ = false;
-    dt_ = sleep_time_ / 1000.0;
 
     // Timers
     pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
@@ -118,6 +135,9 @@ MainNode::MainNode()
 
     pure_pursuit_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::purePursuit, this));
     pure_pursuit_timer_->cancel();
+
+    mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::mpc, this));
+    mpc_timer_->cancel();
 
     this->controlManager();
 }   
@@ -207,9 +227,10 @@ void MainNode::resetSystem() {
 
 void MainNode::controlManager() {
     prepareWaypoints();
-    pid_timer_->reset();
+    // pid_timer_->reset();
     // stanley_timer_->reset();
     // pure_pursuit_timer_->reset();
+    mpc_timer_->reset();
 }
 
 
@@ -353,6 +374,19 @@ void MainNode::purePursuit() {
     
     // Saving discrete errors for visualization
     discrete_errors_.push_back(pure_pursuite_controller_->getDiscreteLinearError());
+}
+
+
+
+void MainNode::mpc() {
+    auto [linear_velocity_signal, angular_velocity_signal] = mpc_controller_->getMPCControllerSignal(
+        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
+
+    // Preparing cmd vel message
+    cmd_vel_message_.linear.x = linear_velocity_signal;
+    cmd_vel_message_.angular.z = angular_velocity_signal;
+
+    cmd_vel_publisher_->publish(cmd_vel_message_);
 }
 
 

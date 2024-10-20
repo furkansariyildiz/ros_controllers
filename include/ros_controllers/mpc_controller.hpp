@@ -53,8 +53,8 @@ namespace ROS2Controllers
 
             casadi::DM shiftSolution(const casadi::DM &previous_solution, int n_controls, int n_states);
 
-            std::tuple<double, double> getMPCControllerSignal(const double dt, const double vehicle_position_x,
-                const double vehicle_position_y, const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path);
+            std::tuple<double, double> getMPCControllerSignal(const double vehicle_position_x, const double vehicle_position_y, 
+                const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path);
     }; // namespace ROS2Controllers
 }
 

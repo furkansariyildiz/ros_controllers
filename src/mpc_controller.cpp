@@ -127,7 +127,7 @@ casadi::DM ROS2Controllers::MPCController::shiftSolution(const casadi::DM &previ
 
 
 
-std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSignal(const double dt, const double vehicle_position_x,
+std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSignal(const double vehicle_position_x,
     const double vehicle_position_y, const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path) {
     
     // Prepare the initial state and references
@@ -154,8 +154,8 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
     casadi::DM p = casadi::DM(p_data);
 
     // Prediction of starting point
-    int n_states = 3 * (horizon_ + 1);
     int n_controls = 2 * horizon_;
+    int n_states = 3 * (horizon_ + 1);
 
     casadi::DM x0;
 
@@ -167,9 +167,35 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
         x0 = shiftSolution(previous_solution_, n_controls, n_states);
     }
     
+    // Constraints limits
+    double v_min = 0.0;
+    double v_max = 2.0;
+
+    double w_min = -1.0;
+    double w_max = 1.0;
+
+    int n_controls_total = 2 * horizon_;
+    int n_states_total = 3 * (horizon_ + 1);
+
     int nlp_g = 3 * (horizon_ + 1);
-    casadi::DM lbg = casadi::DM::zeros(nlp_g);
-    casadi::DM ubg = casadi::DM::zeros(nlp_g);
+    int nlp_x = n_controls_total + n_states_total;
+    casadi::DM lbg = casadi::DM::zeros(nlp_g); // Lower bound
+    casadi::DM ubg = casadi::DM::zeros(nlp_g); // Upper bound
+    casadi::DM lbx = casadi::DM::zeros(nlp_x); // Lower bound
+    casadi::DM ubx = casadi::DM::zeros(nlp_x); // Upper bound
+
+    for (int k=0; k<horizon_; ++k) {
+        int idx_v = 2 * k;
+        int idx_w = 2 * k + 1;
+
+        // Linear velocity limit
+        lbx(idx_v) = v_min;
+        ubx(idx_v) = v_max;
+
+        // Angular velocity limit
+        lbx(idx_w) = w_min;
+        ubx(idx_w) = w_max;
+    }
 
     // Run the optimization
     std::map<std::string, casadi::DM> arg;
@@ -178,6 +204,9 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
     arg["lbg"] = lbg;
     arg["ubg"] = ubg;
     arg["p"] = p;
+
+    arg["lbx"] = lbx;
+    arg["ubx"] = ubx;
 
     auto res = solver_(arg);
 

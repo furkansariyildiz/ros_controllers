@@ -53,6 +53,7 @@ class MainNode : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr pid_timer_;
         rclcpp::TimerBase::SharedPtr stanley_timer_;
         rclcpp::TimerBase::SharedPtr pure_pursuit_timer_;
+        rclcpp::TimerBase::SharedPtr mpc_timer_;
 
         nav_msgs::msg::Odometry odometry_message_;
 
@@ -132,6 +133,15 @@ class MainNode : public rclcpp::Node
 
         double vehicle_base_wiidth_;
 
+        // MPC Controller Parameters
+        int horizon_mpc_controller_;
+
+        double vehicle_base_width_;
+
+        double error_threshold_mpc_controller_;
+
+        double signal_limit_mpc_controller_;
+
         bool vehicle_is_reached_;
 
         std::ofstream result_path_csv_file_;
@@ -161,6 +171,8 @@ class MainNode : public rclcpp::Node
         void stanley();
 
         void purePursuit();
+
+        void mpc();
 
         void writeAndPlotResults(const std::string test_name);
 };
