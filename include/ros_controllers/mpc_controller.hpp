@@ -32,6 +32,16 @@ namespace ROS2Controllers
             double signal_limit_;
 
             double dt_;
+
+            SX Q_;
+            SX R_;
+
+            Function solver_;
+            Dict opts_;
+
+            casadi::DM previous_solution_;
+
+            bool previous_solution_exists_;
             
         public:
             MPCController(const int horizon, const double vehicle_base_width,
@@ -40,6 +50,8 @@ namespace ROS2Controllers
             ~MPCController();
 
             void setupOptimizationProblem();
+
+            casadi::DM shiftSolution(const casadi::DM &previous_solution, int n_controls, int n_states);
 
             std::tuple<double, double> getMPCControllerSignal(const double dt, const double vehicle_position_x,
                 const double vehicle_position_y, const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path);
