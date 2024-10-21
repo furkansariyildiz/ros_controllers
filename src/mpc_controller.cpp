@@ -13,6 +13,8 @@ ROS2Controllers::MPCController::MPCController(const int horizon, const double ve
     // Timers
     Q_ = casadi::SX::diag(casadi::SX({1.0, 1.0, 0.1}));   // x, y and theta
     R_ = casadi::SX::diag(casadi::SX({0.5, 0.5}));        // v, w 
+
+    setupOptimizationProblem();
 }
 
 
@@ -48,16 +50,16 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
     Function f = Function("f", {state, control}, {state + rhs * dt_});
 
     // Optimization variables
-    SX U = SX::sym("U", 2, horizon_);              // Controls [v, w]
-    SX X = SX::sym("X", 3, horizon_ + 1);          // States [x, y, theta]
+    SX U = SX::sym("U", horizon_, 2);              // Controls [v, w]
+    SX X = SX::sym("X", horizon_ + 1, 3);          // States [x, y, theta]
     SX P = SX::sym("P", 3 + 3 * (horizon_ + 1));   // Parameters (initial state and references)
 
     // Objective function and constraints
     SX obj = 0;
-    SX g;
+    SX g = X(0, Slice()).T() - P(Slice(0, 3));
 
     // Initial state constraint
-    g = X(Slice(), 0) - P(Slice(0, 3));
+    // g = X(Slice(), 0) - P(Slice(0, 3));
 
     // Optimization loop
     for (int k=0; k<horizon_; ++k) {
@@ -65,20 +67,28 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
         SX X_ref = P(Slice(3 + 3 * k, 3 + 3 * (k + 1)));
 
         // Goal function
-        SX state_error = X(Slice(), k) - X_ref;
-        SX control_k = U(Slice(), k);
-        obj += SX::dot(state_error, Q_ * state_error) + SX::dot(control_k, R_ * control_k);
+        SX state_error = X(k, Slice()).T() - X_ref;
+        SX control_k = U(k, Slice());
+        // obj += SX::dot(state_error, Q_ * state_error) + SX::dot(control_k, R_ * control_k);
+
+        SX cost_state = SX::mtimes(SX::mtimes(state_error.T(), Q_), state_error);
+        SX cost_control = SX::mtimes(control_k, SX::mtimes(R_, control_k.T()));
+
+        obj += cost_state + cost_control;
 
         // System dynamics (X_k+1 = f(X_k, U_k))
-        std::vector<SX> args = {X(Slice(), k), U(Slice(), k)};
+        std::vector<SX> args = {X(k, Slice()), U(k, Slice())};
         SX X_next = f(args).at(0);
 
         // Accumulate constraints
-        g = SX::vertcat({g, X_next - X(Slice(), k + 1)});
+        g = SX::vertcat({g, X_next - X(k + 1, Slice()).T()});
     }
 
     // NLP Problem Definition
-    SX OPT_variables = SX::vertcat({SX::reshape(U, -1, 1), SX::reshape(X, -1, 1)});
+        SX OPT_variables = SX::vertcat({
+        SX::reshape(U, -1, 1),
+        SX::reshape(X, -1, 1)
+    });
 
     casadi::SXDict nlp = {
         {"x", OPT_variables},
@@ -101,25 +111,41 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
 
 casadi::DM ROS2Controllers::MPCController::shiftSolution(const casadi::DM &previous_solution, int n_controls, int n_states) {
 
+    int N = horizon_;
+    int nu = 2;
+    int nx = 3;
+
     casadi::DM U_prev = previous_solution(casadi::Slice(0, n_controls));
     casadi::DM X_prev = previous_solution(casadi::Slice(n_controls, n_controls + n_states));
 
-    int N = horizon_;
+    // U_prev ve X_prev matrislerini doğru boyutlarda yeniden şekillendirin
+    casadi::DM U_prev_reshaped = SX::reshape(U_prev, N, nu);          // (N x 2)
+    casadi::DM X_prev_reshaped = SX::reshape(X_prev, N + 1, nx);      // (N+1 x 3)
 
-    casadi::DM U_prev_reshaped = SX::reshape(U_prev, n_controls, N);
-    casadi::DM X_prev_reshaped = SX::reshape(X_prev, n_states, N + 1);
+    // Boyutların uygunluğunu kontrol edin
+    if (U_prev_reshaped.size1() != N || U_prev_reshaped.size2() != nu) {
+        std::cout << "U_prev has incompatible size for reshape" << std::endl;
+        throw std::runtime_error("U_prev has incompatible size for reshape");
+    }
 
-    casadi::DM U_shifted = casadi::DM::zeros(n_controls, N);
-    U_shifted(casadi::Slice(), casadi::Slice(0, N - 1)) = U_prev_reshaped(casadi::Slice(), casadi::Slice(1, N));
-    U_shifted(casadi::Slice(), N - 1) = U_prev_reshaped(casadi::Slice(), N - 1);
+    if (X_prev_reshaped.size1() != N + 1 || X_prev_reshaped.size2() != nx) {
+        std::cout << "X_prev has incompatible size for reshape" << std::endl;
+        throw std::runtime_error("X_prev has incompatible size for reshape");
+    }
 
-    casadi::DM X_shifted = casadi::DM::zeros(n_states, N + 1);
-    X_shifted(casadi::Slice(), casadi::Slice(0, N)) = X_prev_reshaped(casadi::Slice(), casadi::Slice(1, N + 1));
-    X_shifted(casadi::Slice(), N) = X_prev_reshaped(casadi::Slice(), N); 
+    // Kontrol sinyallerini ve durum değişkenlerini kaydırın
+    casadi::DM U_shifted = casadi::DM::zeros(N, nu);
+    U_shifted(casadi::Slice(0, N - 1), casadi::Slice()) = U_prev_reshaped(casadi::Slice(1, N), casadi::Slice());
+    U_shifted(N - 1, casadi::Slice()) = U_prev_reshaped(N - 1, casadi::Slice());
 
+    casadi::DM X_shifted = casadi::DM::zeros(N + 1, nx);
+    X_shifted(casadi::Slice(0, N), casadi::Slice()) = X_prev_reshaped(casadi::Slice(1, N + 1), casadi::Slice());
+    X_shifted(N, casadi::Slice()) = X_prev_reshaped(N, casadi::Slice());
+
+    // Karar değişkenlerini düzleştirerek birleştirin
     casadi::DM x0 = SX::vertcat({
-        SX::reshape(U_shifted, -1, 1),
-        SX::reshape(X_shifted, -1, 1)
+        SX::reshape(U_shifted, N * nu, 1),
+        SX::reshape(X_shifted, (N + 1) * nx, 1)
     });
 
     return x0;
@@ -139,13 +165,19 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
     p_data.push_back(vehicle_position_y);
     p_data.push_back(vehicle_yaw);
 
-
     // Reference trajectory
-    for (int k=1; k<horizon_ + 1; ++k) {
-        const geometry_msgs::msg::PoseStamped &reference_previous_pose = path[k - 1];
+    for (int k=0; k<horizon_ + 1; ++k) {
         const geometry_msgs::msg::PoseStamped &reference_current_pose = path[k];
-        const double reference_theta = atan2(reference_current_pose.pose.position.y - reference_previous_pose.pose.position.y, 
-                                   reference_current_pose.pose.position.x - reference_previous_pose.pose.position.x);
+        double reference_theta;
+
+        if (k<horizon_) {
+            const geometry_msgs::msg::PoseStamped &reference_next_pose = path[k + 1];
+            reference_theta = atan2(reference_next_pose.pose.position.y - reference_current_pose.pose.position.y, 
+                                    reference_next_pose.pose.position.x - reference_current_pose.pose.position.x);
+        } else {
+            reference_theta = p_data[p_data.size() - 1];
+        }
+
         p_data.push_back(reference_current_pose.pose.position.x); // x_ref
         p_data.push_back(reference_current_pose.pose.position.y); // y_ref
         p_data.push_back(reference_theta); // theta_ref
@@ -161,40 +193,38 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
 
     if (!previous_solution_exists_) {
         x0 = casadi::DM::zeros(n_states + n_controls);
-        previous_solution_ = true;
+        previous_solution_exists_ = true;
     } else {
         // Update the initial guess
         x0 = shiftSolution(previous_solution_, n_controls, n_states);
+        std::cout << "test";
     }
     
     // Constraints limits
     double v_min = 0.0;
-    double v_max = 2.0;
+    double v_max = 0.2;
 
-    double w_min = -1.0;
-    double w_max = 1.0;
+    double w_min = -0.52;
+    double w_max = 0.52;
 
     int n_controls_total = 2 * horizon_;
     int n_states_total = 3 * (horizon_ + 1);
-
+    int nu = 2;
+    
     int nlp_g = 3 * (horizon_ + 1);
     int nlp_x = n_controls_total + n_states_total;
-    casadi::DM lbg = casadi::DM::zeros(nlp_g); // Lower bound
-    casadi::DM ubg = casadi::DM::zeros(nlp_g); // Upper bound
-    casadi::DM lbx = casadi::DM::zeros(nlp_x); // Lower bound
-    casadi::DM ubx = casadi::DM::zeros(nlp_x); // Upper bound
+    casadi::DM lbg = casadi::DM::zeros(nlp_g); 
+    casadi::DM ubg = casadi::DM::zeros(nlp_g);
+    casadi::DM lbx = -casadi::DM::inf(nlp_x);
+    casadi::DM ubx = casadi::DM::inf(nlp_x);
 
     for (int k=0; k<horizon_; ++k) {
-        int idx_v = 2 * k;
-        int idx_w = 2 * k + 1;
+        int idx = k * nu;
+        lbx(idx) = v_min;
+        ubx(idx) = v_max;
 
-        // Linear velocity limit
-        lbx(idx_v) = v_min;
-        ubx(idx_v) = v_max;
-
-        // Angular velocity limit
-        lbx(idx_w) = w_min;
-        ubx(idx_w) = w_max;
+        lbx(idx + 1) = w_min;
+        ubx(idx + 1) = w_max;
     }
 
     // Run the optimization
@@ -217,7 +247,7 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
     double optimal_angular_velocity = static_cast<double>(u(1));
 
     previous_solution_ = sol;
-    
+
     
     return std::make_tuple(optimal_velocity, optimal_angular_velocity);
 }

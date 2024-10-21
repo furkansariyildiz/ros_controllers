@@ -23,7 +23,7 @@ namespace ROS2Controllers
     class MPCController
     {
         private:
-            double horizon_;
+            int horizon_;
 
             double vehicle_base_width_;
 
