@@ -122,9 +122,10 @@ MainNode::MainNode()
         vehicle_base_wiidth_, error_threshold_pure_pursuit_controller_, signal_limit_pure_pursuit_controller_);
 
     // MPC Controller
-    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
-        signal_limit_mpc_controller_, 1.0);
-    
+    // mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
+    //    signal_limit_mpc_controller_, 1.0);
+    mpc_controller_ = std::make_unique<MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_);
+
 
     // Timers
     pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
@@ -379,42 +380,28 @@ void MainNode::purePursuit() {
 
 
 void MainNode::mpc() {
-    geometry_msgs::msg::Pose target_pose = path_.poses[index_of_pose_].pose;
+    Eigen::VectorXd state(3);
+    state << odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_;  // x, y, theta
 
-    double distance_to_target = std::sqrt(std::pow(target_pose.position.x - odometry_message_.pose.pose.position.x, 2) + 
-        std::pow(target_pose.position.y - odometry_message_.pose.pose.position.y, 2));
+    // Referans yörüngenin oluşturulması
+    std::vector<Eigen::VectorXd> reference_trajectory;
+    for (const auto& pose: path_.poses) {
+        Eigen::VectorXd ref_state(3);
 
-    if (distance_to_target < 0.2) {
-        index_of_pose_++;
-        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
-        if (index_of_pose_ >= path_.poses.size()) {
-            mpc_timer_->cancel();
-            RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
-            writeAndPlotResults("mpc");
-            resetSystem();
-        }
-        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+        double x = pose.pose.position.x;
+        double y = pose.pose.position.y;
+
+        double ref_theta = atan2(y - state(1), x - state(0));
+
+        ref_state << x, y, ref_theta;
+        reference_trajectory.push_back(ref_state);
     }
 
-    std::vector<geometry_msgs::msg::PoseStamped> current_path;
-    for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, static_cast<int>(path_.poses.size())); i++) {
-        current_path.push_back(path_.poses[i]);
-    }
-
-    auto [linear_velocity_signal, angular_velocity_signal] = mpc_controller_->getMPCControllerSignal(
-        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, current_path);
-    
-    for (int i=0; i<current_path.size(); i++) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Current path: " << current_path[i].pose.position.x << ", " << current_path[i].pose.position.y);
-    }
-
-    RCLCPP_INFO_STREAM(this->get_logger(), "-------------------------------" << std::endl);
+    auto [optimal_velocity, optimal_steering_angle] = mpc_controller_->computeControlSignal(state, reference_trajectory);
 
     // Preparing cmd vel message
-    cmd_vel_message_.linear.x = linear_velocity_signal;
-    cmd_vel_message_.angular.z = angular_velocity_signal;
-
-    cmd_vel_publisher_->publish(cmd_vel_message_);
+    cmd_vel_message_.linear.x = optimal_velocity;
+    cmd_vel_message_.angular.z = optimal_steering_angle;
 }
 
 
@@ -470,34 +457,6 @@ int main(int argc, char *argv[]) {
     auto main_node = std::make_shared<MainNode>();
     rclcpp::spin(main_node);
     rclcpp::shutdown();
-
-/**
- *     // MPC kontrolcüsünün oluşturulması
-    double dt = 0.1;       // Zaman adımı (saniye)
-    int horizon = 10;      // Öngörü horizonu
-    double L = 2.5;        // Aracın dingil mesafesi (metre)
-
-    MPCController mpc(dt, horizon, L);
-
-    // Başlangıç durumu
-    Eigen::VectorXd state(3);
-    state << 0.0, 0.0, 0.0;  // x, y, theta
-
-    // Referans yörüngenin oluşturulması
-    std::vector<Eigen::VectorXd> reference_trajectory;
-    for (int k = 0; k < horizon + 1; ++k) {
-        Eigen::VectorXd ref_state(3);
-        ref_state << 0.5 * k * dt, 1.0, 0.0;  // Basit bir doğrusal yörünge
-        reference_trajectory.push_back(ref_state);
-    }
-
-    // Kontrol sinyallerinin hesaplanması
-    auto [optimal_velocity, optimal_steering_angle] = mpc.computeControlSignal(state, reference_trajectory);
-
-    // Sonuçların yazdırılması
-    std::cout << "Optimal Velocity: " << optimal_velocity << std::endl;
-    std::cout << "Optimal Steering Angle: " << optimal_steering_angle << std::endl;
- */
 
     return 0;
 }
