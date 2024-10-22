@@ -123,7 +123,7 @@ MainNode::MainNode()
 
     // MPC Controller
     mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
-        signal_limit_mpc_controller_, dt_);
+        signal_limit_mpc_controller_, 1.0);
     
 
     // Timers
@@ -136,7 +136,7 @@ MainNode::MainNode()
     pure_pursuit_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::purePursuit, this));
     pure_pursuit_timer_->cancel();
 
-    mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::mpc, this));
+    mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&MainNode::mpc, this));
     mpc_timer_->cancel();
 
     this->controlManager();
@@ -379,8 +379,36 @@ void MainNode::purePursuit() {
 
 
 void MainNode::mpc() {
+    geometry_msgs::msg::Pose target_pose = path_.poses[index_of_pose_].pose;
+
+    double distance_to_target = std::sqrt(std::pow(target_pose.position.x - odometry_message_.pose.pose.position.x, 2) + 
+        std::pow(target_pose.position.y - odometry_message_.pose.pose.position.y, 2));
+
+    if (distance_to_target < 0.2) {
+        index_of_pose_++;
+        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+        if (index_of_pose_ >= path_.poses.size()) {
+            mpc_timer_->cancel();
+            RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
+            writeAndPlotResults("mpc");
+            resetSystem();
+        }
+        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+    }
+
+    std::vector<geometry_msgs::msg::PoseStamped> current_path;
+    for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, static_cast<int>(path_.poses.size())); i++) {
+        current_path.push_back(path_.poses[i]);
+    }
+
     auto [linear_velocity_signal, angular_velocity_signal] = mpc_controller_->getMPCControllerSignal(
-        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
+        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, current_path);
+    
+    for (int i=0; i<current_path.size(); i++) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Current path: " << current_path[i].pose.position.x << ", " << current_path[i].pose.position.y);
+    }
+
+    RCLCPP_INFO_STREAM(this->get_logger(), "-------------------------------" << std::endl);
 
     // Preparing cmd vel message
     cmd_vel_message_.linear.x = linear_velocity_signal;

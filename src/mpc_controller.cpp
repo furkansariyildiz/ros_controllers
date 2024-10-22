@@ -11,8 +11,10 @@ ROS2Controllers::MPCController::MPCController(const int horizon, const double ve
     // Publishers
 
     // Timers
-    Q_ = casadi::SX::diag(casadi::SX({1.0, 1.0, 0.1}));   // x, y and theta
-    R_ = casadi::SX::diag(casadi::SX({0.5, 0.5}));        // v, w 
+    Q_ = casadi::SX::diag(casadi::SX({10.0, 10.0, 10.0}));   // x, y and theta
+    R_ = casadi::SX::diag(casadi::SX({0.005, 0.01}));        // v, w 
+    
+    std::cout <<"horizon: " << horizon_ << std::endl;
 
     setupOptimizationProblem();
 }
@@ -118,11 +120,17 @@ casadi::DM ROS2Controllers::MPCController::shiftSolution(const casadi::DM &previ
     casadi::DM U_prev = previous_solution(casadi::Slice(0, n_controls));
     casadi::DM X_prev = previous_solution(casadi::Slice(n_controls, n_controls + n_states));
 
-    // U_prev ve X_prev matrislerini doğru boyutlarda yeniden şekillendirin
+    std::cout << "U_prev size on shiftSolution: " << U_prev.size() << std::endl;
+    std::cout << "X_prev size on shiftSolution: " << X_prev.size() << std::endl;
+
+
+    // Shape U_prev and X_prev
     casadi::DM U_prev_reshaped = SX::reshape(U_prev, N, nu);          // (N x 2)
     casadi::DM X_prev_reshaped = SX::reshape(X_prev, N + 1, nx);      // (N+1 x 3)
 
-    // Boyutların uygunluğunu kontrol edin
+    std::cout << "U_prev_reshaped size on shiftSolution: " << U_prev_reshaped.size1() << " x " << U_prev_reshaped.size2() << std::endl;
+    std::cout << "X_prev_reshaped size on shiftSolution: " << X_prev_reshaped.size1() << " x " << X_prev_reshaped.size2() << std::endl;
+
     if (U_prev_reshaped.size1() != N || U_prev_reshaped.size2() != nu) {
         std::cout << "U_prev has incompatible size for reshape" << std::endl;
         throw std::runtime_error("U_prev has incompatible size for reshape");
@@ -133,7 +141,6 @@ casadi::DM ROS2Controllers::MPCController::shiftSolution(const casadi::DM &previ
         throw std::runtime_error("X_prev has incompatible size for reshape");
     }
 
-    // Kontrol sinyallerini ve durum değişkenlerini kaydırın
     casadi::DM U_shifted = casadi::DM::zeros(N, nu);
     U_shifted(casadi::Slice(0, N - 1), casadi::Slice()) = U_prev_reshaped(casadi::Slice(1, N), casadi::Slice());
     U_shifted(N - 1, casadi::Slice()) = U_prev_reshaped(N - 1, casadi::Slice());
@@ -142,11 +149,13 @@ casadi::DM ROS2Controllers::MPCController::shiftSolution(const casadi::DM &previ
     X_shifted(casadi::Slice(0, N), casadi::Slice()) = X_prev_reshaped(casadi::Slice(1, N + 1), casadi::Slice());
     X_shifted(N, casadi::Slice()) = X_prev_reshaped(N, casadi::Slice());
 
-    // Karar değişkenlerini düzleştirerek birleştirin
+    // Concatenate the shifted solution
     casadi::DM x0 = SX::vertcat({
         SX::reshape(U_shifted, N * nu, 1),
         SX::reshape(X_shifted, (N + 1) * nx, 1)
     });
+
+    // std::cout << "x0 on shiftSolution: " << x0 << std::endl << std::flush;
 
     return x0;
 }
@@ -193,11 +202,11 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
 
     if (!previous_solution_exists_) {
         x0 = casadi::DM::zeros(n_states + n_controls);
+        std::cout << x0 << std::endl;
         previous_solution_exists_ = true;
     } else {
         // Update the initial guess
         x0 = shiftSolution(previous_solution_, n_controls, n_states);
-        std::cout << "test";
     }
     
     // Constraints limits
@@ -247,7 +256,11 @@ std::tuple<double, double> ROS2Controllers::MPCController::getMPCControllerSigna
     double optimal_angular_velocity = static_cast<double>(u(1));
 
     previous_solution_ = sol;
-
     
+    std::cout << "Updated previous_solution_ size: " << previous_solution_.size1() << " x " << previous_solution_.size2() << std::endl << std::flush;
+    std::cout << "Optimal velocity: " << optimal_velocity << std::endl;
+    std::cout << "state error: " << res.at("g") << std::endl;
+    std::cout << "Optimization result: " << res << std::endl;
+
     return std::make_tuple(optimal_velocity, optimal_angular_velocity);
 }
