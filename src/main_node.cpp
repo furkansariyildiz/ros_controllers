@@ -21,7 +21,7 @@ MainNode::MainNode()
 
     sleep_time_ = this->get_parameter("sleep_time").as_int();
     csv_folder_name_ = this->get_parameter("csv_folder_name").as_string();
-    vehicle_base_wiidth_ = this->get_parameter("vehicle_base_width").as_double();
+    vehicle_base_width_ = this->get_parameter("vehicle_base_width").as_double();
 
     // PID (linear velocity controller)
     declare_parameter("PID.linear_velocity.Kp", 0.5);
@@ -119,7 +119,7 @@ MainNode::MainNode()
 
     // Pure-Pursuit Controller
     pure_pursuite_controller_ = std::make_unique<ROS2Controllers::PurePursuitController>(lookahead_distance_pure_pursuit_controller_, 
-        vehicle_base_wiidth_, error_threshold_pure_pursuit_controller_, signal_limit_pure_pursuit_controller_);
+        vehicle_base_width_, error_threshold_pure_pursuit_controller_, signal_limit_pure_pursuit_controller_);
 
     // MPC Controller
     // mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
@@ -385,23 +385,43 @@ void MainNode::mpc() {
 
     // Referans yörüngenin oluşturulması
     std::vector<Eigen::VectorXd> reference_trajectory;
-    for (const auto& pose: path_.poses) {
+
+    if (index_of_pose_ < path_.poses.size() - 1) {
+        double distance = std::sqrt(std::pow(path_.poses[index_of_pose_].pose.position.x - odometry_message_.pose.pose.position.x, 2) + 
+            std::pow(path_.poses[index_of_pose_].pose.position.y - odometry_message_.pose.pose.position.y, 2));
+
+        if (distance < 0.2) {
+            index_of_pose_++;
+        }
+    }
+
+    for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_, (int)path_.poses.size()); i++) {
         Eigen::VectorXd ref_state(3);
+        
+        double x = path_.poses[i].pose.position.x;
+        double y = path_.poses[i].pose.position.y;
 
-        double x = pose.pose.position.x;
-        double y = pose.pose.position.y;
+        double reference_theta = atan2(y - state(1), x - state(0));
 
-        double ref_theta = atan2(y - state(1), x - state(0));
+        RCLCPP_INFO_STREAM(this->get_logger(), "Reference x: " << x);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Reference y: " << y);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Reference theta: " << reference_theta);
 
-        ref_state << x, y, ref_theta;
+        ref_state << x, y, reference_theta;
         reference_trajectory.push_back(ref_state);
     }
 
     auto [optimal_velocity, optimal_steering_angle] = mpc_controller_->computeControlSignal(state, reference_trajectory);
 
+    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal velocity: " << optimal_velocity);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
+    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
+
     // Preparing cmd vel message
     cmd_vel_message_.linear.x = optimal_velocity;
     cmd_vel_message_.angular.z = optimal_steering_angle;
+
+    cmd_vel_publisher_->publish(cmd_vel_message_);
 }
 
 

@@ -13,6 +13,10 @@ MPCController::MPCController(double dt, int horizon, double L)
     opts_["print_time"] = false;
     opts_["verbose"] = false;
 
+    std::cout << "dt: " << dt_ << std::endl;
+    std::cout << "horizon: " << horizon_ << std::endl;
+    std::cout << "L: " << L_ << std::endl;
+
     // Optimizasyon probleminin kurulması
     setupOptimizationProblem();
 }
@@ -34,11 +38,13 @@ void MPCController::setupOptimizationProblem() {
     SX delta = SX::sym("delta");
     SX control = SX::vertcat({v, delta});
 
+    std::cout << "L_" << L_ << std::endl;
+
     // Sistem dinamikleri
     SX rhs = SX::vertcat({
         v * SX::cos(theta),
         v * SX::sin(theta),
-        (v / L_) * SX::tan(delta)
+        (v / 0.5) * SX::tan(delta)
     });
 
     // Discrete-time dynamics
@@ -132,9 +138,32 @@ std::tuple<double, double> MPCController::computeControlSignal(
     });
 
     // Kısıt limitleri
+    // Constraints limits
+    double v_min = 0.0;
+    double v_max = 0.2;
+
+    double w_min = -0.52;
+    double w_max = 0.52;
+    int n_controls_total = 2 * horizon_;
+    int n_states_total = 3 * (horizon_ + 1);
+    int nu = 2;
+    int nlp_x = n_controls_total + n_states_total;
     int nlp_g = 3 * (horizon_ + 1);
+
+
     casadi::DM lbg = casadi::DM::zeros(nlp_g);
     casadi::DM ubg = casadi::DM::zeros(nlp_g);
+    casadi::DM lbx = -casadi::DM::inf(nlp_x);
+    casadi::DM ubx = casadi::DM::inf(nlp_x);
+
+    for (int k=0; k<horizon_; ++k) {
+        int idx = k * nu;
+        lbx(idx) = v_min;
+        ubx(idx) = v_max;
+
+        lbx(idx + 1) = w_min;
+        ubx(idx + 1) = w_max;
+    }
 
     // Optimizasyonun Çalıştırılması
     std::map<std::string, casadi::DM> arg;
@@ -142,6 +171,8 @@ std::tuple<double, double> MPCController::computeControlSignal(
     arg["x0"] = OPT_variables;
     arg["lbg"] = lbg;
     arg["ubg"] = ubg;
+    arg["lbx"] = lbx;
+    arg["ubx"] = ubx;
     arg["p"] = p;
 
     auto res = solver_(arg);

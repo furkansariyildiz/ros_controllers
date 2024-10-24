@@ -132,12 +132,10 @@ class MainNode : public rclcpp::Node
 
         double signal_limit_pure_pursuit_controller_;
 
-        double vehicle_base_wiidth_;
+        double vehicle_base_width_;
 
         // MPC Controller Parameters
         int horizon_mpc_controller_;
-
-        double vehicle_base_width_;
 
         double error_threshold_mpc_controller_;
 
