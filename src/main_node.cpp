@@ -124,7 +124,7 @@ MainNode::MainNode()
     // MPC Controller
     // mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
     //    signal_limit_mpc_controller_, 1.0);
-    mpc_controller_ = std::make_unique<MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_);
+    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_);
 
 
     // Timers
