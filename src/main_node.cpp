@@ -402,13 +402,11 @@ void MainNode::mpc() {
 
     std::vector<Eigen::VectorXd> reference_trajectory;
 
-    if (index_of_pose_ < path_.poses.size() - 1) {
-        double distance = std::sqrt(std::pow(path_.poses[index_of_pose_].pose.position.x - odometry_message_.pose.pose.position.x, 2) + 
-            std::pow(path_.poses[index_of_pose_].pose.position.y - odometry_message_.pose.pose.position.y, 2));
-            RCLCPP_INFO_STREAM(this->get_logger(), "Distance: " << distance);
-        if (distance < 0.4) {
-            index_of_pose_++;
-        }
+    if (index_of_pose_ >= path_.poses.size() - horizon_mpc_controller_) {
+        mpc_timer_->cancel();
+        RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
+        writeAndPlotResults("mpc");
+        resetSystem();
     }
 
     for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, (int)path_.poses.size()); i++) {
@@ -427,11 +425,13 @@ void MainNode::mpc() {
         reference_trajectory.push_back(ref_state);
     }
 
-    std::cout << "Reference trajectory size: " << reference_trajectory.size() << std::endl;
+    auto [optimal_velocity, optimal_steering_angle, vehicle_position_is_reached_] = mpc_controller_->computeControlSignal(state, reference_trajectory);
 
-    auto [optimal_velocity, optimal_steering_angle] = mpc_controller_->computeControlSignal(state, reference_trajectory);
+    if (vehicle_position_is_reached_) {
+        index_of_pose_++;
+        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+    }
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal velocity: " << optimal_velocity);
     RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
     RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
     RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");

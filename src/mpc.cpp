@@ -50,7 +50,7 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
     SX rhs = SX::vertcat({
         v * SX::cos(theta),
         v * SX::sin(theta),
-        (v / 0.5) * SX::tan(delta)
+        (v / L_) * SX::tan(delta)
     });
 
     // Discrete-time dynamics
@@ -108,17 +108,17 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
 
 
 
-std::tuple<double, double> ROS2Controllers::MPCController::computeControlSignal(
+std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlSignal(
     const Eigen::VectorXd& state,
     const std::vector<Eigen::VectorXd>& reference_trajectory) {
 
     // Check the size of the state and reference trajectory
     if (state.size() < 3) {
         std::cout << "Error: State vector size is less than 3!" << std::endl;
-        return std::make_tuple(0.0, 0.0);  
+        return std::make_tuple(0.0, 0.0, false);  
     } else if (reference_trajectory.size() < horizon_ + 1) {
         std::cout << "Error: Reference trajectory size is less than expected!" << std::endl;
-        return std::make_tuple(0.0, 0.0);  
+        return std::make_tuple(0.0, 0.0, false);  
     }
 
     // Prepare the initial state and references
@@ -199,6 +199,16 @@ std::tuple<double, double> ROS2Controllers::MPCController::computeControlSignal(
     double optimal_velocity = static_cast<double>(u(0));
     double optimal_steering_angle = static_cast<double>(u(1));
 
-    return std::make_tuple(optimal_velocity, optimal_steering_angle);
+    // Calculating distance between vehicle and first reference point
+    double distance = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
+        std::pow(reference_trajectory[0](1) - state(1), 2));
+
+    std::cout << "Distance to first reference point: " << distance << std::endl;
+
+    if (distance < 0.4) {
+        return std::make_tuple(optimal_velocity, optimal_steering_angle, true);
+    }
+
+    return std::make_tuple(optimal_velocity, optimal_steering_angle, false);
 }
 

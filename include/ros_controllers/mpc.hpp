@@ -77,7 +77,7 @@ namespace ROS2Controllers {
             /**
              * 
              */
-            std::tuple<double, double> computeControlSignal(
+            std::tuple<double, double, bool> computeControlSignal(
                 const Eigen::VectorXd& state,
                 const std::vector<Eigen::VectorXd>& reference_trajectory);
     };

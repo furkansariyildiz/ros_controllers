@@ -27,7 +27,7 @@
       error_threshold: 0.1
       signal_limit: 0.52359877559
       Q: [10.0 , 10.0, 10.0]
-      R: [0.1, 0.1]
-    vehicle_base_width: 0.5
+      R: [0.2, 0.2]
+    vehicle_base_width: 0.14
     sleep_time: 100 # miliseconds
     csv_folder_name: "/home/furkan/controller_ws/src/ros_controllers/results/"
