@@ -112,6 +112,15 @@ std::tuple<double, double> ROS2Controllers::MPCController::computeControlSignal(
     const Eigen::VectorXd& state,
     const std::vector<Eigen::VectorXd>& reference_trajectory) {
 
+    // Check the size of the state and reference trajectory
+    if (state.size() < 3) {
+        std::cout << "Error: State vector size is less than 3!" << std::endl;
+        return std::make_tuple(0.0, 0.0);  
+    } else if (reference_trajectory.size() < horizon_ + 1) {
+        std::cout << "Error: Reference trajectory size is less than expected!" << std::endl;
+        return std::make_tuple(0.0, 0.0);  
+    }
+
     // Prepare the initial state and references
     std::vector<double> p_data;
     p_data.reserve(3 + 3 * (horizon_ + 1));
@@ -120,7 +129,7 @@ std::tuple<double, double> ROS2Controllers::MPCController::computeControlSignal(
     for (int i = 0; i < 3; ++i) {
         p_data.push_back(state(i));
     }
-
+    
     // Reference trajectory
     for (int k = 0; k < horizon_ + 1; ++k) {
         const Eigen::VectorXd& ref = reference_trajectory[k];

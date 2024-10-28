@@ -154,7 +154,7 @@ MainNode::MainNode()
     pure_pursuit_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::purePursuit, this));
     pure_pursuit_timer_->cancel();
 
-    mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&MainNode::mpc, this));
+    mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::mpc, this));
     mpc_timer_->cancel();
 
     this->controlManager();
@@ -400,19 +400,18 @@ void MainNode::mpc() {
     Eigen::VectorXd state(3);
     state << odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_;  // x, y, theta
 
-    // Referans yörüngenin oluşturulması
     std::vector<Eigen::VectorXd> reference_trajectory;
 
     if (index_of_pose_ < path_.poses.size() - 1) {
         double distance = std::sqrt(std::pow(path_.poses[index_of_pose_].pose.position.x - odometry_message_.pose.pose.position.x, 2) + 
             std::pow(path_.poses[index_of_pose_].pose.position.y - odometry_message_.pose.pose.position.y, 2));
-
-        if (distance < 0.2) {
+            RCLCPP_INFO_STREAM(this->get_logger(), "Distance: " << distance);
+        if (distance < 0.4) {
             index_of_pose_++;
         }
     }
 
-    for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_, (int)path_.poses.size()); i++) {
+    for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, (int)path_.poses.size()); i++) {
         Eigen::VectorXd ref_state(3);
         
         double x = path_.poses[i].pose.position.x;
@@ -420,13 +419,15 @@ void MainNode::mpc() {
 
         double reference_theta = atan2(y - state(1), x - state(0));
 
-        RCLCPP_INFO_STREAM(this->get_logger(), "Reference x: " << x);
-        RCLCPP_INFO_STREAM(this->get_logger(), "Reference y: " << y);
-        RCLCPP_INFO_STREAM(this->get_logger(), "Reference theta: " << reference_theta);
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Reference x: " << x);
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Reference y: " << y);
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Reference theta: " << reference_theta);
 
         ref_state << x, y, reference_theta;
         reference_trajectory.push_back(ref_state);
     }
+
+    std::cout << "Reference trajectory size: " << reference_trajectory.size() << std::endl;
 
     auto [optimal_velocity, optimal_steering_angle] = mpc_controller_->computeControlSignal(state, reference_trajectory);
 
