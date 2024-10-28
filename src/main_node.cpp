@@ -90,6 +90,8 @@ MainNode::MainNode()
     declare_parameter("MPC.horizon", 10);
     declare_parameter("MPC.error_threshold", 0.1);
     declare_parameter("MPC.signal_limit", 0.5);
+    declare_parameter("MPC.Q", std::vector<double>({1.0, 1.0, 0.1}));
+    declare_parameter("MPC.R", std::vector<double>({0.01, 0.01}));
 
     horizon_mpc_controller_ = this->
         get_parameter("MPC.horizon").as_int();
@@ -99,6 +101,21 @@ MainNode::MainNode()
 
     signal_limit_mpc_controller_ = this->
         get_parameter("MPC.signal_limit").as_double();
+
+    mpc_q_ = this->
+        get_parameter("MPC.Q").as_double_array();
+
+    mpc_r_ = this->
+        get_parameter("MPC.R").as_double_array();
+
+
+    for (const auto &q : mpc_q_) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Q: " << q);
+    }
+
+    for (const auto &r : mpc_r_) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "R: " << r);
+    }
     
     // Initialize class variables
     vehicle_position_is_reached_ = false;
@@ -124,7 +141,7 @@ MainNode::MainNode()
     // MPC Controller
     // mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
     //    signal_limit_mpc_controller_, 1.0);
-    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_);
+    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_, mpc_q_, mpc_r_);
 
 
     // Timers
@@ -415,6 +432,7 @@ void MainNode::mpc() {
 
     RCLCPP_INFO_STREAM(this->get_logger(), "Optimal velocity: " << optimal_velocity);
     RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
     RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
 
     // Preparing cmd vel message

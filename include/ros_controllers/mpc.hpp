@@ -40,6 +40,10 @@ namespace ROS2Controllers {
              */
             double L_;           
 
+            std::vector<double> Q_vector_;
+
+            std::vector<double> R_vector_;
+
             /**
              * 
              */
@@ -63,7 +67,7 @@ namespace ROS2Controllers {
             /**
              * 
              */
-            MPCController(double dt, int horizon, double L);
+            MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R);
             
             /**
              * 

@@ -2,12 +2,12 @@
 
 
 
-ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L)
-    : dt_(dt), horizon_(horizon), L_(L) {
+ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R)
+    : dt_(dt), horizon_(horizon), L_(L), Q_vector_(Q), R_vector_(R) {
 
     // Define the weighting matrices
-    Q_ = casadi::SX::diag(casadi::SX({1.0, 1.0, 0.1}));   // x, y and theta
-    R_ = casadi::SX::diag(casadi::SX({0.5, 0.5}));        // v, delta
+    Q_ = casadi::SX::diag(casadi::SX({Q_vector_[0], Q_vector_[1], Q_vector_[2]}));   // x, y and theta
+    R_ = casadi::SX::diag(casadi::SX({R_vector_[0], R_vector_[1]}));        // v and delta
 
     // Solver options
     opts_ = casadi::Dict();

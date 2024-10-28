@@ -140,6 +140,10 @@ class MainNode : public rclcpp::Node
 
         double signal_limit_mpc_controller_;
 
+        std::vector<double> mpc_q_;
+
+        std::vector<double> mpc_r_;
+
         bool vehicle_is_reached_;
 
         std::ofstream result_path_csv_file_;
