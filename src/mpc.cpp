@@ -52,20 +52,28 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
     // State and control variables
     SX x = SX::sym("x");
     SX y = SX::sym("y");
-    SX theta = SX::sym("theta");
+    SX theta = SX::sym("theta"); 
     SX state = SX::vertcat({x, y, theta});
 
-    SX v = SX::sym("v");
-    SX delta = SX::sym("delta");
-    SX control = SX::vertcat({v, delta});
+    SX v = SX::sym("v"); // Linear velocity
+    SX delta = SX::sym("delta"); // Steering angle
+    SX w = SX::sym("w"); // Angular velocity
+    // SX control = SX::vertcat({v, delta}); // Linear velocity and steering angle
+    SX control = SX::vertcat({v, w}); // Linear velocity and angular velocity
 
     std::cout << "L_" << L_ << std::endl;
 
     // System dynamics
+    // SX rhs = SX::vertcat({
+    //     v * SX::cos(theta),
+    //     v * SX::sin(theta),
+    //     (v / L_) * SX::tan(delta)
+    // });
+
     SX rhs = SX::vertcat({
         v * SX::cos(theta),
         v * SX::sin(theta),
-        (v / L_) * SX::tan(delta)
+        w
     });
 
     // Discrete-time dynamics

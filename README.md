@@ -32,7 +32,13 @@ This results are getted via this config;
       lookahead_distance: 0.5
       error_threshold: 0.1
       signal_limit: 0.52359877559
-      vehicle_base_width: 0.5
+    MPC:
+      horizon: 20
+      error_threshold: 0.1
+      signal_limit: 0.52359877559
+      Q: [30.0 , 30.0, 1000.0]
+      R: [0.1, 0.1]
+    vehicle_base_width: 0.14
     sleep_time: 100 # miliseconds
     csv_folder_name: "/home/furkan/controller_ws/src/ros_controllers/results/"
 ```
@@ -50,6 +56,11 @@ This results are getted via this config;
 ### Pure-Pursuit Result
 <p align="center">
   <img src="results/pure_pursuit/pure-pursuit-result.png" style="width: 100%; height: 100%"/>
+</p>
+
+### MPC Result
+<p align="center">
+  <img src="results/mpc/mpc-result.png" style="width: 100%; height: 100%"/>
 </p>
 
 ---
@@ -94,4 +105,13 @@ This results are getted via this config;
   <img src="results/pure_pursuit/pure-pursuit-discrete-error.png" style="width: 100%; height: 100%"/>
 </p>
 
+## MPC Errors
 
+### Continuous Errors for MPC
+<p align="center">
+  <img src="results/mpc/mpc-continuous-error.png" style="width: 100%; height: 100%"/>
+</p>
+
+<p align="center">
+  <img src="results/mpc/mpc-discrete-error.png" style="width: 100%; height: 100%"/>
+</p>
