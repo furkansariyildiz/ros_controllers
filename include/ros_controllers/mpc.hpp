@@ -63,17 +63,28 @@ namespace ROS2Controllers {
              * 
              */
             Dict opts_;
+
+            double error_threshold_;
+
+            double discrete_linear_error_;
+
+            double continous_linear_error_;
+
         public:
             /**
              * 
              */
-            MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R);
+            MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double error_threshold);
             
             /**
              * 
              */
             ~MPCController();
 
+            double getDiscreteLinearError();
+
+            double getContinousLinearError();
+            
             /**
              * 
              */

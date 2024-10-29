@@ -2,8 +2,9 @@
 
 
 
-ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R)
-    : dt_(dt), horizon_(horizon), L_(L), Q_vector_(Q), R_vector_(R) {
+ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double error_threshold)
+    : dt_(dt), horizon_(horizon), L_(L), Q_vector_(Q), R_vector_(R), error_threshold_(error_threshold), 
+      discrete_linear_error_(0.0), continous_linear_error_(0.0) {
 
     // Define the weighting matrices
     Q_ = casadi::SX::diag(casadi::SX({Q_vector_[0], Q_vector_[1], Q_vector_[2]}));   // x, y and theta
@@ -25,7 +26,21 @@ ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, 
 
 
 
-ROS2Controllers::MPCController::~MPCController() {}
+ROS2Controllers::MPCController::~MPCController() {
+
+}
+
+
+
+double ROS2Controllers::MPCController::getDiscreteLinearError() {
+    return discrete_linear_error_;
+}
+
+
+
+double ROS2Controllers::MPCController::getContinousLinearError() {
+    return continous_linear_error_;
+}
 
 
 
@@ -200,12 +215,13 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     double optimal_steering_angle = static_cast<double>(u(1));
 
     // Calculating distance between vehicle and first reference point
-    double distance = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
+    continous_linear_error_ = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
         std::pow(reference_trajectory[0](1) - state(1), 2));
+    
+    std::cout << "Distance to first reference point: " << continous_linear_error_ << std::endl;
 
-    std::cout << "Distance to first reference point: " << distance << std::endl;
-
-    if (distance < 0.4) {
+    if (continous_linear_error_ < error_threshold_) {
+        discrete_linear_error_ = continous_linear_error_;
         return std::make_tuple(optimal_velocity, optimal_steering_angle, true);
     }
 

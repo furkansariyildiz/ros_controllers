@@ -141,8 +141,7 @@ MainNode::MainNode()
     // MPC Controller
     // mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
     //    signal_limit_mpc_controller_, 1.0);
-    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_, mpc_q_, mpc_r_);
-
+    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_, mpc_q_, mpc_r_, error_threshold_mpc_controller_);
 
     // Timers
     pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
@@ -441,6 +440,15 @@ void MainNode::mpc() {
     cmd_vel_message_.angular.z = optimal_steering_angle;
 
     cmd_vel_publisher_->publish(cmd_vel_message_);
+
+    // Saving vehicle poses for visualization
+    vehicle_poses_.push_back(odometry_message_.pose.pose);
+
+    // Saving continuous errors for visualization
+    continuous_errors_.push_back(mpc_controller_->getContinousLinearError());
+
+    // Saving discrete errors for visualization
+    discrete_errors_.push_back(mpc_controller_->getDiscreteLinearError());
 }
 
 
