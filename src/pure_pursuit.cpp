@@ -6,7 +6,7 @@ ROS2Controllers::PurePursuitController::PurePursuitController(const double looka
     const double error_threshold, const double signal_limit)
     : lookahead_distance_(lookahead_distance), vehicle_base_width_(vehicle_base_width), error_threshold_(error_threshold), 
       signal_limit_(signal_limit), index_of_pose_(0), previous_index_of_pose_(0), continous_linear_error_(0.0),
-      discrete_linear_error_(0.0) {
+      discrete_linear_error_(0.0), previous_index_of_pose_initialized_(false) {
     // Subscribers
 
     // Publishers
@@ -67,8 +67,18 @@ double ROS2Controllers::PurePursuitController::findDistanceViaIndex() {
 
 void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead() {
     while (findDistanceViaIndex() < lookahead_distance_) {
+        if (!previous_index_of_pose_initialized_) {
+            previous_index_of_pose_ = index_of_pose_;
+            double previous_target_x = path_[previous_index_of_pose_].pose.position.x;
+            double previous_target_y = path_[previous_index_of_pose_].pose.position.y;
+            discrete_linear_error_ = findDistance(previous_target_x, previous_target_y, vehicle_position_x_, vehicle_position_y_);
+            previous_index_of_pose_initialized_ = true;
+        }
+
         index_of_pose_++;
     }
+
+    previous_index_of_pose_initialized_ = false;
 }
 
 
@@ -88,15 +98,6 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
 
     // Continous error
     continous_linear_error_ = findDistance(target_x, target_y, vehicle_position_x_, vehicle_position_y_);
-
-    // Discrete error
-    if (previous_index_of_pose_ != index_of_pose_) {
-        double previous_target_x = path_[previous_index_of_pose_].pose.position.x;
-        double previous_target_y = path_[previous_index_of_pose_].pose.position.y;
-
-        discrete_linear_error_ = findDistance(previous_target_x, previous_target_y, vehicle_position_x_, vehicle_position_y_);
-        previous_index_of_pose_ = index_of_pose_;
-    }
 
     double alpha = atan2(target_y - vehicle_position_y_, target_x - vehicle_position_x_) - vehicle_yaw;
 
@@ -123,6 +124,9 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
     }
 
     std::cout << "Distance (ld): " << ld << std::endl;
+    std::cout << "Continous error: " << continous_linear_error_ << std::endl;
+    std::cout << "Discerete error: " << discrete_linear_error_ << std::endl;
+    std::cout << "-------------------------------" << std::endl;
 
     return std::make_tuple(angular_velocity, false);
 }

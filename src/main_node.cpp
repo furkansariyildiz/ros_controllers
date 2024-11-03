@@ -246,8 +246,8 @@ void MainNode::controlManager() {
     prepareWaypoints();
     // pid_timer_->reset();
     // stanley_timer_->reset();
-    // pure_pursuit_timer_->reset();
-    mpc_timer_->reset();
+    pure_pursuit_timer_->reset();
+    // mpc_timer_->reset();
 }
 
 

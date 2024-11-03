@@ -36,6 +36,8 @@ namespace ROS2Controllers
 
             int previous_index_of_pose_;
 
+            bool previous_index_of_pose_initialized_;
+
             double continous_linear_error_;
 
             double discrete_linear_error_;
