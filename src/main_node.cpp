@@ -93,7 +93,8 @@ MainNode::MainNode()
     // MPC Controller Parameters
     declare_parameter("MPC.horizon", 10);
     declare_parameter("MPC.error_threshold", 0.1);
-    declare_parameter("MPC.signal_limit", 0.5);
+    declare_parameter("MPC.linear_velocity.signal_limit", 0.5);
+    declare_parameter("MPC.angular_velocity.signal_limit", 0.5);
     declare_parameter("MPC.Q", std::vector<double>({1.0, 1.0, 0.1}));
     declare_parameter("MPC.R", std::vector<double>({0.01, 0.01}));
 
@@ -103,8 +104,11 @@ MainNode::MainNode()
     error_threshold_mpc_controller_ = this->
         get_parameter("MPC.error_threshold").as_double();
 
-    signal_limit_mpc_controller_ = this->
-        get_parameter("MPC.signal_limit").as_double();
+    signal_limit_linear_velocity_mpc_controller_ = this->
+        get_parameter("MPC.linear_velocity.signal_limit").as_double();
+
+    signal_limit_angular_velocity_mpc_controller_ = this->
+        get_parameter("MPC.angular_velocity.signal_limit").as_double();
 
     mpc_q_ = this->
         get_parameter("MPC.Q").as_double_array();
@@ -120,6 +124,9 @@ MainNode::MainNode()
     for (const auto &r : mpc_r_) {
         RCLCPP_INFO_STREAM(this->get_logger(), "R: " << r);
     }
+
+    RCLCPP_INFO_STREAM(this->get_logger(), "Signal limit linear velocity MPC: " << signal_limit_linear_velocity_mpc_controller_);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Signal limit angular velocity MPC: " << signal_limit_angular_velocity_mpc_controller_);
     
     // Initialize class variables
     vehicle_position_is_reached_ = false;
@@ -145,7 +152,8 @@ MainNode::MainNode()
     // MPC Controller
     // mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(horizon_mpc_controller_, vehicle_base_width_, error_threshold_mpc_controller_, 
     //    signal_limit_mpc_controller_, 1.0);
-    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_, mpc_q_, mpc_r_, error_threshold_mpc_controller_);
+    mpc_controller_ = std::make_unique<ROS2Controllers::MPCController>(dt_, horizon_mpc_controller_, vehicle_base_width_, mpc_q_, mpc_r_, 
+        signal_limit_linear_velocity_mpc_controller_, signal_limit_angular_velocity_mpc_controller_, error_threshold_mpc_controller_);
 
     // Timers
     pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
@@ -196,7 +204,7 @@ void MainNode::prepareWaypoints() {
 
     path_.poses.clear();
 
-    for (int i=0; i<number_of_points; i++) {
+    for (int i=1; i<number_of_points + 1; i++) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header.frame_id = "map";
         pose.header.stamp = this->now();
@@ -213,7 +221,7 @@ void MainNode::prepareWaypoints() {
         path_.poses.push_back(pose);
     }
 
-    index_of_pose_ = 0;
+    index_of_pose_ = 2;
 
     previous_waypoint_ = path_.poses[index_of_pose_].pose;
     next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
@@ -250,8 +258,8 @@ void MainNode::controlManager() {
     prepareWaypoints();
     // pid_timer_->reset();
     // stanley_timer_->reset();
-    pure_pursuit_timer_->reset();
-    // mpc_timer_->reset();
+    // pure_pursuit_timer_->reset();
+    mpc_timer_->reset();
 }
 
 
@@ -405,24 +413,23 @@ void MainNode::mpc() {
 
     std::vector<Eigen::VectorXd> reference_trajectory;
 
-    if (index_of_pose_ >= path_.poses.size() - horizon_mpc_controller_) {
+    // if (index_of_pose_ >= path_.poses.size() - horizon_mpc_controller_) {
+    if (index_of_pose_ >= path_.poses.size() - 1) {
         mpc_timer_->cancel();
         RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
         writeAndPlotResults("mpc");
         resetSystem();
+        return;
     }
 
-    for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, (int)path_.poses.size()); i++) {
+    // for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, (int)path_.poses.size()); i++) {
+    for (int i=index_of_pose_; i<(int)path_.poses.size(); i++) {
         Eigen::VectorXd ref_state(3);
         
         double x = path_.poses[i].pose.position.x;
         double y = path_.poses[i].pose.position.y;
 
         double reference_theta = atan2(y - state(1), x - state(0));
-
-        // RCLCPP_INFO_STREAM(this->get_logger(), "Reference x: " << x);
-        // RCLCPP_INFO_STREAM(this->get_logger(), "Reference y: " << y);
-        // RCLCPP_INFO_STREAM(this->get_logger(), "Reference theta: " << reference_theta);
 
         ref_state << x, y, reference_theta;
         reference_trajectory.push_back(ref_state);

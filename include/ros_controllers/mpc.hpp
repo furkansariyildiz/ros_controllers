@@ -64,6 +64,10 @@ namespace ROS2Controllers {
              */
             Dict opts_;
 
+            double signal_limit_linear_velocity_;
+
+            double signal_limit_angular_velocity_;
+
             double error_threshold_;
 
             double discrete_linear_error_;
@@ -74,7 +78,8 @@ namespace ROS2Controllers {
             /**
              * 
              */
-            MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double error_threshold);
+            MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double signal_limit_linear_velocity, 
+                double signal_limit_angular_velocity, double error_threshold);
             
             /**
              * 

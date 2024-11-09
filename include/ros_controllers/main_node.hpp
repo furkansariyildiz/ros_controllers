@@ -140,7 +140,9 @@ class MainNode : public rclcpp::Node
 
         double error_threshold_mpc_controller_;
 
-        double signal_limit_mpc_controller_;
+        double signal_limit_linear_velocity_mpc_controller_;
+
+        double signal_limit_angular_velocity_mpc_controller_;
 
         std::vector<double> mpc_q_;
 

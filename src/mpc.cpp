@@ -2,13 +2,15 @@
 
 
 
-ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double error_threshold)
+ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double signal_limit_linear_velocity, 
+    double signal_limit_angular_velocity, double error_threshold)
     : dt_(dt), horizon_(horizon), L_(L), Q_vector_(Q), R_vector_(R), error_threshold_(error_threshold), 
+      signal_limit_linear_velocity_(signal_limit_linear_velocity), signal_limit_angular_velocity_(signal_limit_angular_velocity), 
       discrete_linear_error_(0.0), continous_linear_error_(0.0) {
 
     // Define the weighting matrices
     Q_ = casadi::SX::diag(casadi::SX({Q_vector_[0], Q_vector_[1], Q_vector_[2]}));   // x, y and theta
-    R_ = casadi::SX::diag(casadi::SX({R_vector_[0], R_vector_[1]}));        // v and delta
+    R_ = casadi::SX::diag(casadi::SX({R_vector_[0], R_vector_[1]}));        // v and w
 
     // Solver options
     opts_ = casadi::Dict();
@@ -56,7 +58,7 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
     SX state = SX::vertcat({x, y, theta});
 
     SX v = SX::sym("v"); // Linear velocity
-    SX delta = SX::sym("delta"); // Steering angle
+    // SX delta = SX::sym("delta"); // Steering angle
     SX w = SX::sym("w"); // Angular velocity
     // SX control = SX::vertcat({v, delta}); // Linear velocity and steering angle
     SX control = SX::vertcat({v, w}); // Linear velocity and angular velocity
@@ -140,8 +142,10 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
         std::cout << "Error: State vector size is less than 3!" << std::endl;
         return std::make_tuple(0.0, 0.0, false);  
     } else if (reference_trajectory.size() < horizon_ + 1) {
+        horizon_--;
+        setupOptimizationProblem();
         std::cout << "Error: Reference trajectory size is less than expected!" << std::endl;
-        return std::make_tuple(0.0, 0.0, false);  
+        // return std::make_tuple(0.0, 0.0, false);  
     }
 
     // Prepare the initial state and references
@@ -177,11 +181,12 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     });
 
     // Constraints limits
-    double v_min = 0.0; 
-    double v_max = 0.2;
+    double v_min = -signal_limit_linear_velocity_; 
+    double v_max = signal_limit_linear_velocity_;
 
-    double w_min = -0.52;
-    double w_max = 0.52;
+    double w_min = -signal_limit_angular_velocity_;
+    double w_max = signal_limit_angular_velocity_;
+    
     int n_controls_total = 2 * horizon_;
     int n_states_total = 3 * (horizon_ + 1);
     int nu = 2;
