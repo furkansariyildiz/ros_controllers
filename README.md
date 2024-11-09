@@ -29,7 +29,8 @@ This results are getted via this config;
       error_threshold: 0.05
       signal_limit: 0.52359877559
     PurePursuit:
-      lookahead_distance: 0.5
+      lookahead_distance: 0.30
+      constant_velocity: 0.25
       error_threshold: 0.1
       signal_limit: 0.52359877559
     MPC:
@@ -55,7 +56,7 @@ This results are getted via this config;
 
 ### Pure-Pursuit Result
 <p align="center">
-  <img src="results/pure_pursuit/pure-pursuit-result.png" style="width: 100%; height: 100%"/>
+  <img src="results/pure_pursuit/results/pure-pursuit-result.png" style="width: 100%; height: 100%"/>
 </p>
 
 ### MPC Result
@@ -97,12 +98,12 @@ This results are getted via this config;
 
 ### Continuous Errors for Pure-Pursuit
 <p align="center">
-  <img src="results/pure_pursuit/pure-pursuit-continuous-error.png" style="width: 100%; height: 100%"/>
+  <img src="results/pure_pursuit/continuous-errors/pure-pursuit-continuous-error.png" style="width: 100%; height: 100%"/>
 </p>
 
 ### Discrete Erros for Pure-Pursuit
 <p align="center">
-  <img src="results/pure_pursuit/pure-pursuit-discrete-error.png" style="width: 100%; height: 100%"/>
+  <img src="results/pure_pursuit/discrete-errors/pure-pursuit-discrete-error.png" style="width: 100%; height: 100%"/>
 </p>
 
 ## MPC Errors

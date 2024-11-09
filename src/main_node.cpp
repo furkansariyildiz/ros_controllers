@@ -74,11 +74,15 @@ MainNode::MainNode()
     
     // Pure-Pursuit Controller Parameters
     declare_parameter("PurePursuit.lookahead_distance", 2.0);
+    declare_parameter("PurePursuit.constant_velocity", 0.5);
     declare_parameter("PurePursuit.error_threshold", 0.1);
     declare_parameter("PurePursuit.signal_limit", 0.5);
 
     lookahead_distance_pure_pursuit_controller_ = this->
         get_parameter("PurePursuit.lookahead_distance").as_double();
+
+    constant_velocity_pure_pursuit_controller_ = this->
+        get_parameter("PurePursuit.constant_velocity").as_double();
 
     error_threshold_pure_pursuit_controller_ = this->
         get_parameter("PurePursuit.error_threshold").as_double();
@@ -378,7 +382,7 @@ void MainNode::purePursuit() {
      * @todo Linear velocity will be calculated from pure-pursuit controller. 
      * For now, it is set to 0.5 m/s.
      */
-    cmd_vel_message_.linear.x = 0.5;
+    cmd_vel_message_.linear.x = constant_velocity_pure_pursuit_controller_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
     cmd_vel_publisher_->publish(cmd_vel_message_);

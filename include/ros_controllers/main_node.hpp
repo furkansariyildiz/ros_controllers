@@ -127,6 +127,8 @@ class MainNode : public rclcpp::Node
         // Pure-Pursuit Controller Parameters
         double lookahead_distance_pure_pursuit_controller_;
 
+        double constant_velocity_pure_pursuit_controller_;
+
         double error_threshold_pure_pursuit_controller_;
 
         double signal_limit_pure_pursuit_controller_;
