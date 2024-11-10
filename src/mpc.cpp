@@ -181,7 +181,7 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     });
 
     // Constraints limits
-    double v_min = -signal_limit_linear_velocity_; 
+    double v_min = 0.0; 
     double v_max = signal_limit_linear_velocity_;
 
     double w_min = -signal_limit_angular_velocity_;

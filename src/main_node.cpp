@@ -221,7 +221,7 @@ void MainNode::prepareWaypoints() {
         path_.poses.push_back(pose);
     }
 
-    index_of_pose_ = 2;
+    index_of_pose_ = 0;
 
     previous_waypoint_ = path_.poses[index_of_pose_].pose;
     next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
@@ -422,6 +422,7 @@ void MainNode::mpc() {
         return;
     }
 
+    int end_pose = std::min(index_of_pose_ + horizon_mpc_controller_, (int)path_.poses.size() - 1);
     // for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, (int)path_.poses.size()); i++) {
     for (int i=index_of_pose_; i<(int)path_.poses.size(); i++) {
         Eigen::VectorXd ref_state(3);
@@ -429,9 +430,19 @@ void MainNode::mpc() {
         double x = path_.poses[i].pose.position.x;
         double y = path_.poses[i].pose.position.y;
 
-        double reference_theta = atan2(y - state(1), x - state(0));
+        double x_next_waypoint = path_.poses[i + 1].pose.position.x;
+        double y_next_waypoint = path_.poses[i + 1].pose.position.y;
 
-        ref_state << x, y, reference_theta;
+        double x_current_waypoint = path_.poses[i].pose.position.x;
+        double y_current_waypoint = path_.poses[i].pose.position.y;
+        /**
+         * Caution
+         * @todo calculate reference theta from path instead of states.
+         */
+        // double reference_theta = atan2(y - state(1), x - state(0));
+        double reference_theta = atan2(y_next_waypoint - y_current_waypoint, x_next_waypoint - x_current_waypoint);
+        
+        ref_state << x_current_waypoint, y_current_waypoint, reference_theta;
         reference_trajectory.push_back(ref_state);
     }
 
