@@ -44,6 +44,8 @@ namespace ROS2Controllers {
 
             std::vector<double> R_vector_;
 
+            Function f_;
+
             /**
              * 
              */
@@ -64,6 +66,10 @@ namespace ROS2Controllers {
              */
             Dict opts_;
 
+            SX g_concat_;
+
+            SX OPT_variables_;
+
             double signal_limit_linear_velocity_;
 
             double signal_limit_angular_velocity_;
@@ -73,6 +79,10 @@ namespace ROS2Controllers {
             double discrete_linear_error_;
 
             double continous_linear_error_;
+
+            int n_controls_;
+
+            int n_states_;
 
         public:
             /**
@@ -90,6 +100,8 @@ namespace ROS2Controllers {
 
             double getContinousLinearError();
             
+            void testFunction();
+
             /**
              * 
              */

@@ -25,13 +25,13 @@
       signal_limit: 0.52359877559
     MPC:
       horizon: 10
-      error_threshold: 0.10
+      error_threshold: 0.12
       linear_velocity:
         signal_limit: 0.5
       angular_velocity:
         signal_limit: 0.52359877559
-      Q: [10000000.0 , 10000000.0, 0.0] # State punishment matrix (x, y, theta)
-      R: [10000.0, 0.0] # Input punishment matrix (v, w)
+      Q: [25.0 , 25.0, 0.05] # State punishment matrix (x, y, theta)
+      R: [0.5, 0.05] # Input punishment matrix (v, w)
     vehicle_base_width: 0.14
     sleep_time: 100 # miliseconds
     csv_folder_name: "/home/furkan/controller_ws/src/ros_controllers/results/"
