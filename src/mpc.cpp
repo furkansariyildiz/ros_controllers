@@ -124,10 +124,10 @@ void ROS2Controllers::MPCController::testFunction() {
     std::vector<double> x0 = {0.0, 0.0, 0.0};  // x, y, theta
 
     // Başlangıç tahminleri
-    std::vector<double> u0(N * n_controls, 0.0);          // Kontrol değişkenleri için başlangıç tahmini
-    std::vector<double> x_mpc((N + 1) * n_states, 0.0);   // Durum değişkenleri için başlangıç tahmini
+    // std::vector<double> u0(N * n_controls, 0.0);          // Kontrol değişkenleri için başlangıç tahmini
+    // std::vector<double> x_mpc((N + 1) * n_states, 0.0);   // Durum değişkenleri için başlangıç tahmini
     for (int i = 0; i < n_states; ++i) {
-        x_mpc[i] = x0[i];
+        x_mpc_[i] = x0[i];
     }
 
     // MPC çözümleme döngüsü
@@ -176,8 +176,8 @@ void ROS2Controllers::MPCController::testFunction() {
 
         // Başlangıç değerleri
         std::vector<double> x_init;
-        x_init.insert(x_init.end(), u0.begin(), u0.end());
-        x_init.insert(x_init.end(), x_mpc.begin(), x_mpc.end());
+        x_init.insert(x_init.end(), u0_.begin(), u0_.end());
+        x_init.insert(x_init.end(), x_mpc_.begin(), x_mpc_.end());
 
         // Kısıt sınırları
         int nlp_g = g_concat.size().first;
@@ -218,11 +218,11 @@ void ROS2Controllers::MPCController::testFunction() {
         xx.push_back(x0);
 
         // Kontrol ve durum tahminlerini güncelle
-        u0.erase(u0.begin(), u0.begin() + n_controls);
-        u0.insert(u0.end(), sol_u.end() - n_controls, sol_u.end());
+        u0_.erase(u0_.begin(), u0_.begin() + n_controls);
+        u0_.insert(u0_.end(), sol_u.end() - n_controls, sol_u.end());
 
-        x_mpc.erase(x_mpc.begin(), x_mpc.begin() + n_states);
-        x_mpc.insert(x_mpc.end(), sol_x.end() - n_states, sol_x.end());
+        x_mpc_.erase(x_mpc_.begin(), x_mpc_.begin() + n_states);
+        x_mpc_.insert(x_mpc_.end(), sol_x.end() - n_states, sol_x.end());
 
         mpc_iter += 1;
     }
@@ -296,7 +296,7 @@ void ROS2Controllers::MPCController::setupOptimizationProblem() {
         std::vector<SX> args = {st, con};
         SX f_value = f_(args)[0];
         SX st_next_euler = st + dt_ * f_value;
-        g.push_back(st_next - st_next_euler);  // Sistem dinamiği kısıtı
+        g.push_back(st_next - st_next_euler);  
 
         // Reference state
         SX ref = P(Slice(n_states_ + k * n_states_, n_states_ + (k + 1) * n_states_));
@@ -351,12 +351,19 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
         // return std::make_tuple(0.0, 0.0, false);  
     }
 
-    std::vector<double> u0(horizon_ * n_controls_, 0.0);
-    std::vector<double> x_mpc((horizon_ + 1) * n_states_, 0.0);
+    if (u0_.empty()) {
+        u0_.resize(horizon_ * n_controls_, 0.0);
+    }
+    if (x_mpc_.empty()) {
+        x_mpc_.resize((horizon_ + 1) * n_states_, 0.0);
+        for (int i = 0; i < n_states_; ++i) {
+            x_mpc_[i] = x0[i];
+        }
+    }
     
     // State initialization
     for (int i=0; i<n_states_; ++i) {
-        x_mpc[i] = x0[i];
+        x_mpc_[i] = x0[i];
     }
 
     std::vector<std::vector<double>> xx;
@@ -379,29 +386,31 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
 
     // Initial state
     std::vector<double> x_init;
-    x_init.insert(x_init.end(), u0.begin(), u0.end());
-    x_init.insert(x_init.end(), x_mpc.begin(), x_mpc.end());
+    x_init.insert(x_init.end(), u0_.begin(), u0_.end());
+    x_init.insert(x_init.end(), x_mpc_.begin(), x_mpc_.end());
 
     // Constraints limits
     int nlp_x = OPT_variables_.size().first;
     int nlp_g = g_concat_.size().first;
     casadi::DM lbg = casadi::DM::zeros(nlp_g);
     casadi::DM ubg = casadi::DM::zeros(nlp_g);
-    casadi::DM lbx = -casadi::DM::inf(nlp_x);
-    casadi::DM ubx = casadi::DM::inf(nlp_x);
+    std::vector<double> lbx(nlp_x, -1e20);
+    std::vector<double> ubx(nlp_x, 1e20);
     int nu = 2;
 
     for (int k=0; k<horizon_; ++k) {
-        int idx = k * nu;
-        lbx(idx) = -signal_limit_linear_velocity_;
-        ubx(idx) = signal_limit_linear_velocity_;
+        int idx = k * n_controls_;
+        lbx[idx] = -signal_limit_linear_velocity_;
+        ubx[idx] = signal_limit_linear_velocity_;
 
-        lbx(idx + 1) = -signal_limit_angular_velocity_;
-        ubx(idx + 1) = signal_limit_angular_velocity_;
+        lbx[idx + 1] = -signal_limit_angular_velocity_;
+        ubx[idx + 1] = signal_limit_angular_velocity_;
     }
 
+    casadi::DM lbx_dm = casadi::DM(lbx);
+    casadi::DM ubx_dm = casadi::DM(ubx);
 
-    DMDict arg = {{"x0", x_init}, {"lbx", lbx}, {"ubx", ubx}, {"lbg", lbg}, {"ubg", ubg}, {"p", p_values}};
+    DMDict arg = {{"x0", x_init}, {"lbx", lbx_dm}, {"ubx", ubx_dm}, {"lbg", lbg}, {"ubg", ubg}, {"p", p_values}};
     DMDict sol = solver_(arg);
 
     // Get the solution
@@ -419,10 +428,6 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     casadi::DM u_applied_dm = casadi::DM(u_applied);
 
     casadi::DM x0_dm = casadi::DM(x0);
-
-    // Predict the system dynamics
-    std::vector<casadi::DM> args = {x0_dm, u_applied_dm};
-    casadi::DM f_value = f_(args)[0];
 
     // Calculating distance between vehicle and first reference point
     continous_linear_error_ = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
@@ -480,7 +485,7 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     // Başlangıç tahminleri (kontrol ve durum değişkenleri)
     // Eğer önceki kontrol girdilerini ve durum tahminlerini saklıyorsanız, bunları kullanabilirsiniz
     // Aksi halde sıfır matrisler kullanabilirsiniz
-    std::vector<double> u0(horizon_ * 2, 0.0); // Kontrol girdileri için başlangıç tahmini
+    std::vector<double> u0_(horizon_ * 2, 0.0); // Kontrol girdileri için başlangıç tahmini
     std::vector<double> x0((horizon_ + 1) * 3, 0.0); // Durum değişkenleri için başlangıç tahmini
 
     // Başlangıç durumunu durum tahmininin ilk elemanına yerleştirin
@@ -490,8 +495,8 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
 
     // Optimizasyon değişkenlerini birleştirin
     std::vector<double> OPT_variables;
-    OPT_variables.reserve(u0.size() + x0.size());
-    OPT_variables.insert(OPT_variables.end(), u0.begin(), u0.end());
+    OPT_variables.reserve(u0_.size() + x0.size());
+    OPT_variables.insert(OPT_variables.end(), u0_.begin(), u0_.end());
     OPT_variables.insert(OPT_variables.end(), x0.begin(), x0.end());
 
     // Kısıt sınırları

@@ -414,7 +414,7 @@ void MainNode::mpc() {
     std::vector<Eigen::VectorXd> reference_trajectory;
 
     // if (index_of_pose_ >= path_.poses.size() - horizon_mpc_controller_) {
-    if (index_of_pose_ >= path_.poses.size() - 1) {
+    if (index_of_pose_ >= path_.poses.size() - 2) {
         mpc_timer_->cancel();
         RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
         writeAndPlotResults("mpc");

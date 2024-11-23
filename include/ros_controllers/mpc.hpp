@@ -44,6 +44,10 @@ namespace ROS2Controllers {
 
             std::vector<double> R_vector_;
 
+            std::vector<double> u0_;
+            
+            std::vector<double> x_mpc_;
+
             Function f_;
 
             /**

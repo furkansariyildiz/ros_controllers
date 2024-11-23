@@ -25,7 +25,7 @@
       signal_limit: 0.52359877559
     MPC:
       horizon: 10
-      error_threshold: 0.12
+      error_threshold: 0.10
       linear_velocity:
         signal_limit: 0.5
       angular_velocity:
