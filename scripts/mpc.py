@@ -183,7 +183,7 @@ class MPCController(Node):
         frequency = 0.5     # Sinüs dalgasının frekansı
         v_ref = 0.1         # x ekseninde referans hız
 
-        if self.position_.pose.pose.position.x >= 5.0:
+        if self.position_.pose.pose.position.x >= 10.0:
             print("Hedefe ulaşıldı!")
             self.save_data()
             return 
