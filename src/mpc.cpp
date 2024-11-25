@@ -43,8 +43,8 @@ ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, 
     g.push_back(st - P_(Slice(0, n_states_)));
 
     // Cost function (state and control weights)
-    SX Q = SX::diagcat(std::vector<SX>{SX(20.0), SX(20.0), SX(1.0)});
-    SX R = SX::diagcat(std::vector<SX>{SX(0.5), SX(0.05)});
+    SX Q = SX::diagcat(std::vector<SX>{SX(Q_vector_[0]), SX(Q_vector_[1]), SX(Q_vector_[2])});
+    SX R = SX::diagcat(std::vector<SX>{SX(R_vector_[0]), SX(R_vector_[1])});
 
     // MPC loop
     for (int k = 0; k < N_; ++k) {
@@ -151,8 +151,8 @@ void ROS2Controllers::MPCController::updateReferenceTrajectory(const std::vector
         ref_traj_(k, 2) = reference_trajectory[k](2);
     }
     */
-    double amplitude = 1.0;   
-    double frequency = 0.5;    
+    double amplitude = 2.0;   
+    double frequency = 0.2;    
     double v_ref = 0.1;         
 
     for (int k = 0; k < N_; ++k) {
