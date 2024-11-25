@@ -435,11 +435,7 @@ void MainNode::mpc() {
 
         double x_current_waypoint = path_.poses[i].pose.position.x;
         double y_current_waypoint = path_.poses[i].pose.position.y;
-        /**
-         * Caution
-         * @todo calculate reference theta from path instead of states.
-         */
-        // double reference_theta = atan2(y - state(1), x - state(0));
+
         double reference_theta = atan2(y_next_waypoint - y_current_waypoint, x_next_waypoint - x_current_waypoint);
         
         ref_state << x_current_waypoint, y_current_waypoint, reference_theta;
@@ -452,10 +448,6 @@ void MainNode::mpc() {
         index_of_pose_++;
         RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
     }
-
-    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
-    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
 
     // Preparing cmd vel message
     cmd_vel_message_.linear.x = optimal_velocity;
@@ -471,6 +463,12 @@ void MainNode::mpc() {
 
     // Saving discrete errors for visualization
     discrete_errors_.push_back(mpc_controller_->getDiscreteLinearError());
+
+    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Discrete error: " << mpc_controller_->getDiscreteLinearError());
+    RCLCPP_INFO_STREAM(this->get_logger(), "Continuous error: " << mpc_controller_->getContinousLinearError());
+    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
 }
 
 

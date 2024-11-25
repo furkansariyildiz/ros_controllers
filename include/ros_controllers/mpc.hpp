@@ -23,12 +23,7 @@ namespace ROS2Controllers {
             /**
              * 
              */
-            void setupOptimizationProblem();
-
-            /**
-             * 
-             */
-            double dt_;          
+            void setupOptimizationProblem();         
             
             /**
              * 
@@ -44,11 +39,6 @@ namespace ROS2Controllers {
 
             std::vector<double> R_vector_;
 
-            std::vector<double> u0_;
-            
-            std::vector<double> x_mpc_;
-
-            Function f_;
 
             /**
              * 
@@ -59,11 +49,6 @@ namespace ROS2Controllers {
              * 
              */
             SX R_;
-
-            /**
-             * 
-             */
-            Function solver_;
             
             /**
              * 
@@ -84,9 +69,41 @@ namespace ROS2Controllers {
 
             double continous_linear_error_;
 
-            int n_controls_;
+            //--------------------------------------------------------------------------------
+            double dt_;
+
+            int N_;
+
+            SX states_;
+
+            SX controls_;
 
             int n_states_;
+
+            int n_controls_;
+
+            Function f_;
+
+            SX U_;
+
+            SX X_;
+
+            SX P_;
+
+            Function solver_;
+
+            SX G_;
+
+            std::vector<double> lbx_;
+            std::vector<double> ubx_;
+
+            DM u0_;
+            DM x_mpc_;
+            DM x0_;
+            DM ref_traj_;
+
+            std::vector<std::array<double, 3>> vehicle_positions_;
+            std::vector<std::array<double, 3>> reference_trajectory_;
 
         public:
             /**
@@ -105,6 +122,10 @@ namespace ROS2Controllers {
             double getContinousLinearError();
             
             void testFunction();
+
+            void updateReferenceTrajectory(const std::vector<Eigen::VectorXd>& reference_trajectory);
+
+            void saveData();
 
             /**
              * 
