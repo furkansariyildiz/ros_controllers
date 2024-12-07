@@ -15,7 +15,6 @@
 
 // ROS2 Controller Libraries
 #include "ros_controllers/mpc.hpp"
-// #include "ros_controllers/mpc_controller.hpp"
 #include "ros_controllers/pid.hpp"
 #include "ros_controllers/stanley.hpp"
 #include "ros_controllers/pure_pursuit.hpp"

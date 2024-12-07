@@ -221,7 +221,7 @@ void MainNode::prepareWaypoints() {
         path_.poses.push_back(pose);
     }
 
-    index_of_pose_ = 2;
+    index_of_pose_ = 0;
 
     previous_waypoint_ = path_.poses[index_of_pose_].pose;
     next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
@@ -413,8 +413,7 @@ void MainNode::mpc() {
 
     std::vector<Eigen::VectorXd> reference_trajectory;
 
-    // if (index_of_pose_ >= path_.poses.size() - horizon_mpc_controller_) {
-    if (index_of_pose_ >= path_.poses.size() - 1) {
+    if (index_of_pose_ >= path_.poses.size()) {
         mpc_timer_->cancel();
         RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
         writeAndPlotResults("mpc");
@@ -422,16 +421,23 @@ void MainNode::mpc() {
         return;
     }
 
-    // for (int i=index_of_pose_; i<std::min(index_of_pose_ + horizon_mpc_controller_ + 1, (int)path_.poses.size()); i++) {
+    int end_pose = std::min(index_of_pose_ + horizon_mpc_controller_, (int)path_.poses.size() - 1);
+    
     for (int i=index_of_pose_; i<(int)path_.poses.size(); i++) {
         Eigen::VectorXd ref_state(3);
         
         double x = path_.poses[i].pose.position.x;
         double y = path_.poses[i].pose.position.y;
 
-        double reference_theta = atan2(y - state(1), x - state(0));
+        double x_next_waypoint = path_.poses[i + 1].pose.position.x;
+        double y_next_waypoint = path_.poses[i + 1].pose.position.y;
 
-        ref_state << x, y, reference_theta;
+        double x_current_waypoint = path_.poses[i].pose.position.x;
+        double y_current_waypoint = path_.poses[i].pose.position.y;
+
+        double reference_theta = atan2(y_next_waypoint - y_current_waypoint, x_next_waypoint - x_current_waypoint);
+        
+        ref_state << x_current_waypoint, y_current_waypoint, reference_theta;
         reference_trajectory.push_back(ref_state);
     }
 
@@ -441,10 +447,6 @@ void MainNode::mpc() {
         index_of_pose_++;
         RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
     }
-
-    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
-    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
 
     // Preparing cmd vel message
     cmd_vel_message_.linear.x = optimal_velocity;
@@ -460,6 +462,12 @@ void MainNode::mpc() {
 
     // Saving discrete errors for visualization
     discrete_errors_.push_back(mpc_controller_->getDiscreteLinearError());
+
+    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
+    RCLCPP_INFO_STREAM(this->get_logger(), "Discrete error: " << mpc_controller_->getDiscreteLinearError());
+    RCLCPP_INFO_STREAM(this->get_logger(), "Continuous error: " << mpc_controller_->getContinousLinearError());
+    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
 }
 
 

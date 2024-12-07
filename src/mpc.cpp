@@ -2,28 +2,114 @@
 
 
 
-ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q, std::vector<double> R, double signal_limit_linear_velocity, 
+ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, std::vector<double> Q_param, std::vector<double> R_param, double signal_limit_linear_velocity, 
     double signal_limit_angular_velocity, double error_threshold)
-    : dt_(dt), horizon_(horizon), L_(L), Q_vector_(Q), R_vector_(R), error_threshold_(error_threshold), 
+    : dt_(dt), N_(horizon), L_(L), Q_vector_(Q_param), R_vector_(R_param), error_threshold_(error_threshold), 
       signal_limit_linear_velocity_(signal_limit_linear_velocity), signal_limit_angular_velocity_(signal_limit_angular_velocity), 
       discrete_linear_error_(0.0), continous_linear_error_(0.0) {
 
-    // Define the weighting matrices
-    Q_ = casadi::SX::diag(casadi::SX({Q_vector_[0], Q_vector_[1], Q_vector_[2]}));   // x, y and theta
-    R_ = casadi::SX::diag(casadi::SX({R_vector_[0], R_vector_[1]}));        // v and w
+    SX x = SX::sym("x");
+    SX y = SX::sym("y");
+    SX theta = SX::sym("theta");
+    states_ = SX::vertcat({x, y, theta});
+    n_states_ = states_.size1();
+    
+    SX v = SX::sym("v");
+    SX omega = SX::sym("omega");
+    controls_ = SX::vertcat({v, omega});
+    n_controls_ = controls_.size1();
 
-    // Solver options
-    opts_ = casadi::Dict();
-    opts_["ipopt.print_level"] = 0;
-    opts_["print_time"] = false;
-    opts_["verbose"] = false;
+    // System dynamics (unicycle model)
+    SX rhs = SX::vertcat({
+        v * SX::cos(theta),
+        v * SX::sin(theta),
+        omega
+    });
 
-    std::cout << "dt: " << dt_ << std::endl;
-    std::cout << "horizon: " << horizon_ << std::endl;
-    std::cout << "L: " << L_ << std::endl;
+    // Convert the system dynamics to a function
+    f_ = Function("f", {states_, controls_}, {rhs});
 
-    // Setup the optimization problem
-    setupOptimizationProblem();
+    // MPC variables
+    U_ = SX::sym("U", n_controls_, N_);          
+    X_ = SX::sym("X", n_states_, N_ + 1);
+    P_ = SX::sym("P", n_states_ + N_ * n_states_);
+
+    // Objective function and constraints
+    SX obj = 0;
+    std::vector<SX> g;
+
+    // Initial state constraint
+    SX st = X_(Slice(), 0);
+    g.push_back(st - P_(Slice(0, n_states_)));
+
+    // Cost function (state and control weights)
+    SX Q = SX::diagcat(std::vector<SX>{SX(Q_vector_[0]), SX(Q_vector_[1]), SX(Q_vector_[2])});
+    SX R = SX::diagcat(std::vector<SX>{SX(R_vector_[0]), SX(R_vector_[1])});
+
+    // MPC loop
+    for (int k = 0; k < N_; ++k) {
+        st = X_(Slice(), k);
+        SX con = U_(Slice(), k);
+        SX st_next = X_(Slice(), k + 1);
+        SX f_value = f_(std::vector<SX>{st, con})[0];
+        SX st_next_euler = st + dt_ * f_value;
+        g.push_back(st_next - st_next_euler);
+
+        // Reference state
+        SX ref = P_(Slice(n_states_ + k * n_states_, n_states_ + (k + 1) * n_states_));
+
+        // Update the objective function
+        obj = obj + mtimes((st - ref).T(), mtimes(Q, st - ref)) + mtimes(con.T(), mtimes(R, con));
+    }
+
+    // Create the concatenated constraint vector
+    SX OPT_variables = SX::vertcat(std::vector<SX>{
+        SX::reshape(U_, n_controls_ * N_, 1),
+        SX::reshape(X_, n_states_ * (N_ + 1), 1)
+    });
+
+    SX G = SX::vertcat(g);
+
+    // Create the NLP problem
+    casadi::SXDict nlp_prob = {{"f", obj}, {"x", OPT_variables}, {"g", G}, {"p", P_}};
+
+    // Options for the solver
+    Dict opts;
+    opts["ipopt.max_iter"] = 2000;
+    opts["ipopt.print_level"] = 0;
+    opts["print_time"] = 0;
+    opts["ipopt.acceptable_tol"] = 1e-8;
+    opts["ipopt.acceptable_obj_change_tol"] = 1e-6;
+
+    // Create the solver function
+    solver_ = nlpsol("solver", "ipopt", nlp_prob, opts);
+
+    // Initialize control and states values for predictions
+    u0_ = DM::zeros(N_, n_controls_);
+    x_mpc_ = DM::zeros(N_ + 1, n_states_);
+
+    // State and control constraints
+    int n_vars = OPT_variables.size1();
+    lbx_ = std::vector<double>(n_vars, -std::numeric_limits<double>::infinity());
+    ubx_ = std::vector<double>(n_vars, std::numeric_limits<double>::infinity());
+
+    double v_max = signal_limit_linear_velocity;
+    double v_min = -signal_limit_linear_velocity;
+    double omega_max = signal_limit_angular_velocity;
+    double omega_min = -signal_limit_angular_velocity;
+
+    for (int k = 0; k < N_; ++k) {
+        lbx_[k * 2] = v_min;
+        ubx_[k * 2] = v_max;
+
+        lbx_[k * 2 + 1] = omega_min;
+        ubx_[k * 2 + 1] = omega_max;
+    }
+
+    // Current state
+    x0_ = DM::zeros(n_states_);
+
+    ref_traj_ = DM::zeros(N_, n_states_);
 }
 
 
@@ -32,6 +118,11 @@ ROS2Controllers::MPCController::~MPCController() {
 
 }
 
+
+
+void ROS2Controllers::MPCController::testFunction() {
+
+}
 
 
 double ROS2Controllers::MPCController::getDiscreteLinearError() {
@@ -47,88 +138,37 @@ double ROS2Controllers::MPCController::getContinousLinearError() {
 
 
 void ROS2Controllers::MPCController::setupOptimizationProblem() {
-    using casadi::SX;
-    using casadi::Slice;
-    using casadi::Function;
 
-    // State and control variables
-    SX x = SX::sym("x");
-    SX y = SX::sym("y");
-    SX theta = SX::sym("theta"); 
-    SX state = SX::vertcat({x, y, theta});
+}
 
-    SX v = SX::sym("v"); // Linear velocity
-    // SX delta = SX::sym("delta"); // Steering angle
-    SX w = SX::sym("w"); // Angular velocity
-    // SX control = SX::vertcat({v, delta}); // Linear velocity and steering angle
-    SX control = SX::vertcat({v, w}); // Linear velocity and angular velocity
 
-    std::cout << "L_" << L_ << std::endl;
 
-    // System dynamics
-    // SX rhs = SX::vertcat({
-    //     v * SX::cos(theta),
-    //     v * SX::sin(theta),
-    //     (v / L_) * SX::tan(delta)
-    // });
-
-    SX rhs = SX::vertcat({
-        v * SX::cos(theta),
-        v * SX::sin(theta),
-        w
-    });
-
-    // Discrete-time dynamics
-    Function f = Function("f", {state, control}, {state + rhs * dt_});
-
-    // Optimization variables
-    SX U = SX::sym("U", 2, horizon_);              // Controls
-    SX X = SX::sym("X", 3, horizon_ + 1);          // States
-    SX P = SX::sym("P", 3 + 3 * (horizon_ + 1));   // Parameters 
-
-    // Goal function and constraints
-    SX obj = 0;
-    SX g = SX::zeros(3 * (horizon_ + 1), 1); 
-
-    // Initial state constraint
-    g(Slice(0, 3), 0) = X(Slice(), 0) - P(Slice(0, 3));
-
-    // Optimization loop
-    for (int k = 0; k < horizon_; ++k) {
-        // Reference states
-        SX X_ref = P(Slice(3 + 3 * k, 3 + 3 * (k + 1)));
-
-        // Objective function
-        SX state_error = X(Slice(), k) - X_ref;
-        SX control_k = U(Slice(), k);
-        obj += SX::mtimes(state_error.T(), SX::mtimes(Q_, state_error)) + SX::mtimes(control_k.T(), SX::mtimes(R_, control_k));
-
-        // System dynamics (X_k+1 = f(X_k, U_k)) (X_k+1 = A * X_k + B * U_k)
-        std::vector<SX> args = {X(Slice(), k), U(Slice(), k)};
-        SX X_next = f(args).at(0);
-
-        // State constraints
-        g(Slice(3 * (k + 1), 3 * (k + 2)), 0) = X_next - X(Slice(), k + 1);
+void ROS2Controllers::MPCController::updateReferenceTrajectory(const std::vector<Eigen::VectorXd>& reference_trajectory) {
+    /*
+    for (int k = 0; k < N_; ++k) {
+        ref_traj_(k, 0) = reference_trajectory[k](0);
+        ref_traj_(k, 1) = reference_trajectory[k](1);
+        ref_traj_(k, 2) = reference_trajectory[k](2);
     }
+    */
+    double amplitude = 2.0;   
+    double frequency = 0.2;    
+    double v_ref = 0.1;         
 
-    // For last step, calculating the state error and adding it to the objective function
-    SX X_ref = P(Slice(3 + 3 * horizon_, 3 + 3 * (horizon_ + 1)));
-    SX state_error = X(Slice(), horizon_) - X_ref;
-    obj += SX::mtimes(state_error.T(), SX::mtimes(Q_, state_error));
+    for (int k = 0; k < N_; ++k) {
+        double t = (k + 1) * dt_;
+        double x_ref = x0_(0).scalar() + v_ref * t;
+        double y_ref = amplitude * sin(frequency * x_ref);
 
-    // Optimization variables
-    SX OPT_variables = SX::vertcat({SX::reshape(U, 2 * horizon_, 1), SX::reshape(X, 3 * (horizon_ + 1), 1)});
+        double dy_dx = atan2(y_ref - x0_(1).scalar(), x_ref - x0_(0).scalar());
+        double theta_ref = atan2(sin(dy_dx), cos(dy_dx));
 
-    // Creating nlp 
-    casadi::SXDict nlp = {
-        {"x", OPT_variables},
-        {"f", obj},
-        {"g", g},
-        {"p", P}
-    };
+        ref_traj_(k, 0) = x_ref;
+        ref_traj_(k, 1) = y_ref;
+        ref_traj_(k, 2) = theta_ref;
 
-    // Generating the solver
-    solver_ = casadi::nlpsol("solver", "ipopt", nlp, opts_);
+        reference_trajectory_.push_back({x_ref, y_ref, 0.0});
+    }
 }
 
 
@@ -137,107 +177,65 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     const Eigen::VectorXd& state,
     const std::vector<Eigen::VectorXd>& reference_trajectory) {
 
-    // Check the size of the state and reference trajectory
-    if (state.size() < 3) {
-        std::cout << "Error: State vector size is less than 3!" << std::endl;
-        return std::make_tuple(0.0, 0.0, false);  
-    } else if (reference_trajectory.size() < horizon_ + 1) {
-        horizon_--;
-        setupOptimizationProblem();
-        std::cout << "Error: Reference trajectory size is less than expected!" << std::endl;
-        // return std::make_tuple(0.0, 0.0, false);  
-    }
+    // Get the current state
+    x0_ = DM::vertcat({state(0), state(1), state(2)});
+    vehicle_positions_.push_back({state(0), state(1), 0.0});
 
-    // Prepare the initial state and references
-    std::vector<double> p_data;
-    p_data.reserve(3 + 3 * (horizon_ + 1));
+    // Update trajectory
+    updateReferenceTrajectory(reference_trajectory);
 
-    // Initial state
-    for (int i = 0; i < 3; ++i) {
-        p_data.push_back(state(i));
-    }
-    
-    // Reference trajectory
-    for (int k = 0; k < horizon_ + 1; ++k) {
-        const Eigen::VectorXd& ref = reference_trajectory[k];
-        p_data.push_back(ref(0)); // x_ref
-        p_data.push_back(ref(1)); // y_ref
-        p_data.push_back(ref(2)); // theta_ref
-    }
+    // Update parameters
+    DM p = SX::vertcat({x0_, SX::reshape(ref_traj_.T(), N_ * n_states_, 1)});
+    DM x0 = SX::vertcat({SX::reshape(u0_, N_ * n_controls_, 1), SX::reshape(x_mpc_, (N_ + 1) * n_states_, 1)});
+    DM lbg = DM::zeros(G_.size1(), 1);
+    DM ubg = DM::zeros(G_.size1(), 1);
 
-    // Converting the data (p_data) to casadi::DM
-    casadi::DM p = casadi::DM(p_data);
+    std::map<std::string, DM> args;
+    args["p"] = p;
+    args["x0"] = x0;
+    args["lbg"] = lbg;
+    args["ubg"] = ubg;
+    args["lbx"] = lbx_;
+    args["ubx"] = ubx_;
 
-    // Prediction of starting point
-    casadi::DM U0 = casadi::DM::zeros(2, horizon_);
-    std::vector<double> state_vector(state.data(), state.data() + state.size());
-    casadi::DM state_dm = casadi::DM(state_vector);
-    casadi::DM X0 = casadi::DM::repmat(state_dm, 1, horizon_ + 1);
+    // Solve the problem
+    auto sol = solver_(args);
+    DM sol_x = sol.at("x");
+    DM sol_u = sol_x(Slice(0, N_ * n_controls_));
+    DM sol_states = sol_x(Slice(N_ * n_controls_, sol_x.size1()));
 
-    // Vertical concatenation of the optimization variables
-    casadi::DM OPT_variables = casadi::DM::vertcat({
-        casadi::DM::reshape(U0, 2 * horizon_, 1),
-        casadi::DM::reshape(X0, 3 * (horizon_ + 1), 1)
+    sol_u = SX::reshape(sol_u, n_controls_, N_).T();
+    sol_states = SX::reshape(sol_states, n_states_, N_ + 1).T();
+
+    // Apply the first control input
+    auto u_applied = sol_u(Slice(0, 1), Slice());
+    double linear_velocity = static_cast<double>(u_applied(0, 0));
+    double angular_velocity = static_cast<double>(u_applied(0, 1));
+
+    // Update control and state predictions
+    u0_ = DM::vertcat(std::vector<DM>{
+        sol_u(Slice(1, N_), Slice()), 
+        sol_u(Slice(N_ - 1, N_), Slice())
     });
 
-    // Constraints limits
-    double v_min = -signal_limit_linear_velocity_; 
-    double v_max = signal_limit_linear_velocity_;
-
-    double w_min = -signal_limit_angular_velocity_;
-    double w_max = signal_limit_angular_velocity_;
-    
-    int n_controls_total = 2 * horizon_;
-    int n_states_total = 3 * (horizon_ + 1);
-    int nu = 2;
-    int nlp_x = n_controls_total + n_states_total;
-    int nlp_g = 3 * (horizon_ + 1);
-
-    casadi::DM lbg = casadi::DM::zeros(nlp_g);
-    casadi::DM ubg = casadi::DM::zeros(nlp_g);
-    casadi::DM lbx = -casadi::DM::inf(nlp_x);
-    casadi::DM ubx = casadi::DM::inf(nlp_x);
-
-    for (int k=0; k<horizon_; ++k) {
-        int idx = k * nu;
-        lbx(idx) = v_min;
-        ubx(idx) = v_max;
-
-        lbx(idx + 1) = w_min;
-        ubx(idx + 1) = w_max;
-    }
-
-    // Running optimization
-    std::map<std::string, casadi::DM> arg;
-
-    arg["x0"] = OPT_variables;
-    arg["lbg"] = lbg;
-    arg["ubg"] = ubg;
-    arg["lbx"] = lbx;
-    arg["ubx"] = ubx;
-    arg["p"] = p;
-
-    auto res = solver_(arg);
-
-    // Getting the optimal control signal
-    casadi::DM sol = res.at("x");
-    casadi::DM u = sol(casadi::Slice(0, 2 * horizon_));
-
-    // Control inputs
-    double optimal_velocity = static_cast<double>(u(0));
-    double optimal_steering_angle = static_cast<double>(u(1));
+    x_mpc_ = DM::vertcat(std::vector<DM>{
+        sol_states(Slice(1, N_ + 1), Slice()), 
+        sol_states(Slice(N_, N_ + 1), Slice())
+    });
 
     // Calculating distance between vehicle and first reference point
     continous_linear_error_ = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
         std::pow(reference_trajectory[0](1) - state(1), 2));
+
+    double angle_error = std::abs(reference_trajectory[0](2) - state(2));
     
     std::cout << "Distance to first reference point: " << continous_linear_error_ << std::endl;
+    std::cout << "Angle error: " << angle_error << std::endl;
 
     if (continous_linear_error_ < error_threshold_) {
         discrete_linear_error_ = continous_linear_error_;
-        return std::make_tuple(optimal_velocity, optimal_steering_angle, true);
+        return std::make_tuple(linear_velocity, angular_velocity, true);
     }
 
-    return std::make_tuple(optimal_velocity, optimal_steering_angle, false);
+    return std::make_tuple(linear_velocity, angular_velocity, false);
 }
-
