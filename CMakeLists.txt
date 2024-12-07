@@ -26,11 +26,9 @@ add_library(ros_controllers STATIC
             src/stanley.cpp
             src/pure_pursuit.cpp
             src/mpc.cpp
-            src/mpc_controller.cpp
 )
 
 add_executable(ros_controllers_node src/main_node.cpp)
-add_executable(mpc_controller_node src/mpc_controller_node.cpp)
 
 target_link_libraries(ros_controllers
                       ${catkin_LIBRARIES}
@@ -45,14 +43,9 @@ target_link_libraries(ros_controllers_node
                       casadi
 )
 
-target_link_libraries(mpc_controller_node
-                      ${catkin_LIBRARIES}
-                      casadi
-)
 
 install(TARGETS
   ros_controllers_node
-  mpc_controller_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -63,7 +56,6 @@ install(DIRECTORY
 )
 
 ament_target_dependencies(ros_controllers_node rclcpp rclpy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs)
-ament_target_dependencies(mpc_controller_node rclcpp rclpy tf2  tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs)
 
                       
 ament_export_dependencies(rosidl_default_runtime)

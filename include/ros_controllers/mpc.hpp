@@ -125,8 +125,6 @@ namespace ROS2Controllers {
 
             void updateReferenceTrajectory(const std::vector<Eigen::VectorXd>& reference_trajectory);
 
-            void saveData();
-
             /**
              * 
              */

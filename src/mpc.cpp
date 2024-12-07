@@ -167,33 +167,8 @@ void ROS2Controllers::MPCController::updateReferenceTrajectory(const std::vector
         ref_traj_(k, 1) = y_ref;
         ref_traj_(k, 2) = theta_ref;
 
-        if (x_ref >= 5.0) {
-            saveData();
-            rclcpp::shutdown();
-        }
-
         reference_trajectory_.push_back({x_ref, y_ref, 0.0});
     }
-}
-
-
-
-void ROS2Controllers::MPCController::saveData() {
-    std::ofstream vehicle_file("/home/furkan/controller_ws/src/ros_controllers/results/result_mpc.csv");
-    vehicle_file << "vehicle_x,vehicle_y,vehicle_z\n";
-    for (const auto& pos : vehicle_positions_)
-    {
-        vehicle_file << pos[0] << "," << pos[1] << "," << pos[2] << "\n";
-    }
-    vehicle_file.close();
-
-    std::ofstream ref_file("/home/furkan/controller_ws/src/ros_controllers/results/desired_mpc.csv");
-    ref_file << "desired_x,desired_y,desired_z\n";
-    for (const auto& ref : reference_trajectory_)
-    {
-        ref_file << ref[0] << "," << ref[1] << "," << ref[2] << "\n";
-    }
-    ref_file.close();
 }
 
 
