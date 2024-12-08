@@ -120,11 +120,6 @@ ROS2Controllers::MPCController::~MPCController() {
 
 
 
-void ROS2Controllers::MPCController::testFunction() {
-
-}
-
-
 double ROS2Controllers::MPCController::getDiscreteLinearError() {
     return discrete_linear_error_;
 }

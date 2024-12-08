@@ -69,7 +69,6 @@ namespace ROS2Controllers {
 
             double continous_linear_error_;
 
-            //--------------------------------------------------------------------------------
             double dt_;
 
             int N_;
@@ -121,8 +120,6 @@ namespace ROS2Controllers {
 
             double getContinousLinearError();
             
-            void testFunction();
-
             void updateReferenceTrajectory(const std::vector<Eigen::VectorXd>& reference_trajectory);
 
             /**

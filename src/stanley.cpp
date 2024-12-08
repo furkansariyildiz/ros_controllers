@@ -20,9 +20,20 @@ ROS2Controllers::StanleyController::~StanleyController() {
 }
 
 
+double ROS2Controllers::StanleyController::getDiscreteLinearError() const {
+    return discrete_linear_error_;
+}
 
-double ROS2Controllers::StanleyController::getLinearError() {
-    return linear_error_;
+
+
+double ROS2Controllers::StanleyController::getContinousLinearError() const {
+    return continous_linear_error_;
+}
+
+
+
+double ROS2Controllers::StanleyController::getLinearError() const {
+    return continous_linear_error_;
 }
 
 
@@ -37,7 +48,7 @@ std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyC
     double e_denominator = std::sqrt(std::pow(next_waypoint_x - previous_waypoint_x, 2) + 
                                     std::pow(next_waypoint_y - previous_waypoint_y, 2));
 
-    linear_error_ = std::sqrt(std::pow(next_waypoint_x - vehicle_position_x, 2) + 
+    continous_linear_error_ = std::sqrt(std::pow(next_waypoint_x - vehicle_position_x, 2) + 
                                   std::pow(next_waypoint_y - vehicle_position_y, 2));
 
     double error = e_numerator / e_denominator;
@@ -64,7 +75,8 @@ std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyC
 
     std::cout << "Linear error: " << linear_error_ << std::endl;
 
-    if (std::abs(linear_error_) <= error_threshold_) {
+    if (std::abs(continous_linear_error_) <= error_threshold_) {
+        discrete_linear_error_ = continous_linear_error_;
         return std::make_tuple(V_, 0.0, true);
     }
 

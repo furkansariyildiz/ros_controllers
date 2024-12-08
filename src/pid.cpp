@@ -22,6 +22,17 @@ ROS2Controllers::PIDController::~PIDController() {
 }
 
 
+double ROS2Controllers::PIDController::getDiscreteError() const {
+    return discrete_error_;
+}
+
+
+
+double ROS2Controllers::PIDController::getContinousError() const {
+    return continous_error_;
+}
+
+
 
 std::pair<double, bool> ROS2Controllers::PIDController::getPIDControllerSignal(double error, double dt) {
     P_ = Kp_ * error;
@@ -29,10 +40,12 @@ std::pair<double, bool> ROS2Controllers::PIDController::getPIDControllerSignal(d
     D_ = Kd_ * (error - previous_error_) / dt;
 
     previous_error_ = error;
+    continous_error_ = error;
 
     double signal = P_ + I_ + D_;
 
     if (std::abs(error) <= error_threshold_) {
+        discrete_error_ = continous_error_;
         return std::make_pair(signal, true);
     } 
 
