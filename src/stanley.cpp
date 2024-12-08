@@ -32,12 +32,6 @@ double ROS2Controllers::StanleyController::getContinousLinearError() const {
 
 
 
-double ROS2Controllers::StanleyController::getLinearError() const {
-    return continous_linear_error_;
-}
-
-
-
 std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyControllerSignal(double next_waypoint_x, double next_waypoint_y, 
                                                                       double previous_waypoint_x, double previous_waypoint_y,
                                                                       double vehicle_position_x, double vehicle_position_y,
@@ -72,8 +66,6 @@ std::tuple<double, double, bool> ROS2Controllers::StanleyController::getStanleyC
             signal_ = -siganl_limit_;
         }
     }
-
-    std::cout << "Linear error: " << linear_error_ << std::endl;
 
     if (std::abs(continous_linear_error_) <= error_threshold_) {
         discrete_linear_error_ = continous_linear_error_;
