@@ -1,25 +1,32 @@
 cmake_minimum_required(VERSION 3.8)
 project(ros_controllers)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
+find_package(catkin REQUIRED COMPONENTS
+    roscpp
+    rospy
+    tf2
+    tf2_geometry_msgs
+    nav_msgs
+    geometry_msgs
+    std_msgs
+    std_srvs
+    casadi
+)
 
-# find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(rclpy REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
-find_package(builtin_interfaces REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
-find_package(casadi REQUIRED)
 
 include_directories(include {catkin_INCLUDE_DIRS})
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES ros_controllers
+  CATKIN_DEPENDS roscpp rospy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs
+)
+
+include_directories(
+  include
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/
+  ${catkin_INCLUDE_DIRS}
+)
 
 add_library(ros_controllers STATIC
             src/pid.cpp
@@ -35,28 +42,26 @@ target_link_libraries(ros_controllers
                       casadi
 )     
 
-ament_target_dependencies(ros_controllers rclcpp rclpy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs)
-
 target_link_libraries(ros_controllers_node 
                       ${catkin_LIBRARIES}
                       ros_controllers
                       casadi
 )
 
+add_dependencies(ros_controllers_node ${catkin_EXPORTED_TARGETS})
+
 
 install(TARGETS
   ros_controllers_node
-  DESTINATION lib/${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY
   launch
   config
-  DESTINATION share/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-ament_target_dependencies(ros_controllers_node rclcpp rclpy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs)
-
-                      
-ament_export_dependencies(rosidl_default_runtime)
-ament_package()
+      

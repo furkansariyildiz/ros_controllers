@@ -2,14 +2,14 @@
 #define PURE_PURSUITE_HPP_
 
 // ROS2 Libraries
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include <iostream>
 #include <cmath>
 #include <tuple>
 
 // Messages
-#include <geometry_msgs/msg/pose.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
 
 
 
