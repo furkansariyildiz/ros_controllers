@@ -255,9 +255,9 @@ void MainNode::resetSystem() {
 void MainNode::controlManager() {
     prepareWaypoints();
     // pid_timer_->reset();
-    stanley_timer_->reset();
+    // stanley_timer_->reset();
     // pure_pursuit_timer_->reset();
-    // mpc_timer_->reset();
+    mpc_timer_->reset();
 }
 
 
@@ -265,10 +265,10 @@ void MainNode::controlManager() {
 void MainNode::PID() {
     if (index_of_pose_ >= path_.poses.size()) {
         pid_timer_->cancel();
-        stanley_timer_->reset();
         RCLCPP_INFO_STREAM(this->get_logger(), "PID controller is ended.");
         writeAndPlotResults("pid");
         resetSystem();
+        return;
     }
 
     // Desired pose
@@ -338,6 +338,7 @@ void MainNode::stanley() {
         RCLCPP_INFO_STREAM(this->get_logger(), "Stanley controller is ended.");
         writeAndPlotResults("stanley");
         resetSystem();
+        return;
     }
 
     // Vehicle pose
@@ -365,10 +366,10 @@ void MainNode::stanley() {
     vehicle_poses_.push_back(odometry_message_.pose.pose); 
 
     // Saving continous errors for visualization
-    continuous_errors_.push_back(stanley_controller_->getContinousLinearError());
+    continuous_errors_.push_back(stanley_controller_->getContinousError());
     
     // Saving discrete errors for visualization
-    discrete_errors_.push_back(stanley_controller_->getDiscreteLinearError());
+    discrete_errors_.push_back(stanley_controller_->getDiscreteError());
 }
 
 
@@ -382,6 +383,7 @@ void MainNode::purePursuit() {
         RCLCPP_INFO_STREAM(this->get_logger(), "Pure-Pursuit controller is ended.");
         writeAndPlotResults("pure_pursuit");
         resetSystem();
+        return;
     }
     
     // Preparing cmd vel message
@@ -398,10 +400,10 @@ void MainNode::purePursuit() {
     vehicle_poses_.push_back(odometry_message_.pose.pose);
 
     // Saving continuous errors for visualization
-    continuous_errors_.push_back(pure_pursuite_controller_->getContinousLinearError());
+    continuous_errors_.push_back(pure_pursuite_controller_->getContinousError());
     
     // Saving discrete errors for visualization
-    discrete_errors_.push_back(pure_pursuite_controller_->getDiscreteLinearError());
+    discrete_errors_.push_back(pure_pursuite_controller_->getDiscreteError());
 }
 
 
@@ -457,15 +459,15 @@ void MainNode::mpc() {
     vehicle_poses_.push_back(odometry_message_.pose.pose);
 
     // Saving continuous errors for visualization
-    continuous_errors_.push_back(mpc_controller_->getContinousLinearError());
+    continuous_errors_.push_back(mpc_controller_->getContinousError());
 
     // Saving discrete errors for visualization
-    discrete_errors_.push_back(mpc_controller_->getDiscreteLinearError());
+    discrete_errors_.push_back(mpc_controller_->getDiscreteError());
 
     RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
     RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Discrete error: " << mpc_controller_->getDiscreteLinearError());
-    RCLCPP_INFO_STREAM(this->get_logger(), "Continuous error: " << mpc_controller_->getContinousLinearError());
+    RCLCPP_INFO_STREAM(this->get_logger(), "Discrete error: " << mpc_controller_->getDiscreteError());
+    RCLCPP_INFO_STREAM(this->get_logger(), "Continuous error: " << mpc_controller_->getContinousError());
     RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
 }
 

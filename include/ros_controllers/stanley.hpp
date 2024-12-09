@@ -33,9 +33,9 @@ namespace ROS2Controllers
 
             double linear_error_;
 
-            double discrete_linear_error_;
+            double discrete_error_;
 
-            double continous_linear_error_;
+            double continous_error_;
 
         protected:
 
@@ -46,9 +46,9 @@ namespace ROS2Controllers
 
             ~StanleyController();
 
-            double getDiscreteLinearError() const;
+            double getDiscreteError() const;
 
-            double getContinousLinearError() const;
+            double getContinousError() const;
 
             std::tuple<double, double, bool> getStanleyControllerSignal(double next_waypoint_x, double next_waypoint_y, 
                                               double previous_waypoint_x, double previous_waypoint_y,

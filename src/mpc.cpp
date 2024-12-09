@@ -6,7 +6,7 @@ ROS2Controllers::MPCController::MPCController(double dt, int horizon, double L, 
     double signal_limit_angular_velocity, double error_threshold)
     : dt_(dt), N_(horizon), L_(L), Q_vector_(Q_param), R_vector_(R_param), error_threshold_(error_threshold), 
       signal_limit_linear_velocity_(signal_limit_linear_velocity), signal_limit_angular_velocity_(signal_limit_angular_velocity), 
-      discrete_linear_error_(0.0), continous_linear_error_(0.0) {
+      discrete_error_(0.0), continous_error_(0.0) {
 
     SX x = SX::sym("x");
     SX y = SX::sym("y");
@@ -120,14 +120,14 @@ ROS2Controllers::MPCController::~MPCController() {
 
 
 
-double ROS2Controllers::MPCController::getDiscreteLinearError() {
-    return discrete_linear_error_;
+double ROS2Controllers::MPCController::getDiscreteError() {
+    return discrete_error_;
 }
 
 
 
-double ROS2Controllers::MPCController::getContinousLinearError() {
-    return continous_linear_error_;
+double ROS2Controllers::MPCController::getContinousError() {
+    return continous_error_;
 }
 
 
@@ -219,16 +219,16 @@ std::tuple<double, double, bool> ROS2Controllers::MPCController::computeControlS
     });
 
     // Calculating distance between vehicle and first reference point
-    continous_linear_error_ = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
+    continous_error_ = std::sqrt(std::pow(reference_trajectory[0](0) - state(0), 2) + 
         std::pow(reference_trajectory[0](1) - state(1), 2));
 
     double angle_error = std::abs(reference_trajectory[0](2) - state(2));
     
-    std::cout << "Distance to first reference point: " << continous_linear_error_ << std::endl;
+    std::cout << "Distance to first reference point: " << continous_error_ << std::endl;
     std::cout << "Angle error: " << angle_error << std::endl;
 
-    if (continous_linear_error_ < error_threshold_) {
-        discrete_linear_error_ = continous_linear_error_;
+    if (continous_error_ < error_threshold_) {
+        discrete_error_ = continous_error_;
         return std::make_tuple(linear_velocity, angular_velocity, true);
     }
 
