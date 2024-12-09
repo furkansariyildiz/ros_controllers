@@ -38,9 +38,9 @@ namespace ROS2Controllers
 
             bool previous_index_of_pose_initialized_;
 
-            double continous_linear_error_;
+            double continous_error_;
 
-            double discrete_linear_error_;
+            double discrete_error_;
 
         protected:
 
@@ -50,9 +50,9 @@ namespace ROS2Controllers
     
             ~PurePursuitController();
 
-            double getContinousLinearError(void) const;
+            double getContinousError(void) const;
 
-            double getDiscreteLinearError(void) const;
+            double getDiscreteError(void) const;
 
             double findDistance(const double x1, const double y1, const double x2, const double y2);
 

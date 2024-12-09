@@ -27,6 +27,10 @@ namespace ROS2Controllers
 
             const double signal_limit_;
 
+            double discrete_error_;
+
+            double continous_error_;
+
         protected:
 
         public:
@@ -34,6 +38,10 @@ namespace ROS2Controllers
                         double error_threshold, const double signal_limit);
     
             ~PIDController();
+
+            double getDiscreteError() const;
+
+            double getContinousError() const;
 
             std::pair<double, bool> getPIDControllerSignal(double error, double dt);
     };

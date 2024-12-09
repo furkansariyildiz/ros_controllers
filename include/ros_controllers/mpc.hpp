@@ -65,11 +65,10 @@ namespace ROS2Controllers {
 
             double error_threshold_;
 
-            double discrete_linear_error_;
+            double discrete_error_;
 
-            double continous_linear_error_;
+            double continous_error_;
 
-            //--------------------------------------------------------------------------------
             double dt_;
 
             int N_;
@@ -117,12 +116,10 @@ namespace ROS2Controllers {
              */
             ~MPCController();
 
-            double getDiscreteLinearError();
+            double getDiscreteError();
 
-            double getContinousLinearError();
+            double getContinousError();
             
-            void testFunction();
-
             void updateReferenceTrajectory(const std::vector<Eigen::VectorXd>& reference_trajectory);
 
             /**
