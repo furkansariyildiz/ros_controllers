@@ -10,7 +10,6 @@ find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     std_msgs
     std_srvs
-    casadi
 )
 
 
