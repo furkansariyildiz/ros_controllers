@@ -84,7 +84,7 @@ void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead(
 
 
 std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitSignal(const double vehicle_position_x, const double vehicle_position_y,
-    const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path) {
+    const double vehicle_yaw, const std::vector<geometry_msgs::PoseStamped> path) {
     
     path_ = path;
     vehicle_position_x_ = vehicle_position_x;

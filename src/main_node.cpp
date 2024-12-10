@@ -2,131 +2,67 @@
 
 
 
-MainNode::MainNode() 
-    : Node("ros_controllers_node") {
+MainNode::MainNode(ros::NodeHandle &node_handle) 
+    : nh_(node_handle) {
     // Subscribers
-    odometry_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 1, 
-        std::bind(&MainNode::odometryCallback, this, std::placeholders::_1));
+    odometry_subscriber_ = nh_.subscribe("/odom", 1, &MainNode::odometryCallback, this);
 
     // Publishers
-    cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1000);
-
+    cmd_vel_publisher_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+    
     // Services
-    reset_simulation_client_ = this->create_client<std_srvs::srv::Empty>("/reset_simulation");
-
+    reset_simulation_client_ = nh_.serviceClient<std_srvs::Empty>("/reset_simulation");
+    
     // Parameters
-    declare_parameter("sleep_time", 100);
-    declare_parameter("csv_folder_name", "/home/furkan/Documents/csv_files/results/");
-    declare_parameter("vehicle_base_width", 0.5);
-
-    sleep_time_ = this->get_parameter("sleep_time").as_int();
-    csv_folder_name_ = this->get_parameter("csv_folder_name").as_string();
-    vehicle_base_width_ = this->get_parameter("vehicle_base_width").as_double();
+    nh_.getParam("/ros_controllers_node/sleep_time", sleep_time_);
+    nh_.getParam("/ros_controllers_node/cs_folder_name", csv_folder_name_);
+    nh_.getParam("/ros_controllers_node/vehicle_base_width", vehicle_base_width_);
 
     // PID (linear velocity controller)
-    declare_parameter("PID.linear_velocity.Kp", 0.5);
-    declare_parameter("PID.linear_velocity.Ki", 0.0);
-    declare_parameter("PID.linear_velocity.Kd", 0.0);
-    declare_parameter("PID.linear_velocity.error_threshold", 0.1);
-    declare_parameter("PID.linear_velocity.signal_limit", 0.5);
-    
-    Kp_linear_velocity_ = this->
-        get_parameter("PID.linear_velocity.Kp").as_double();
-    Ki_linear_velocity_ = this->
-        get_parameter("PID.linear_velocity.Ki").as_double();
-    Kd_linear_velocity_ = this->
-        get_parameter("PID.linear_velocity.Kd").as_double();
-    error_threshold_linear_velocity_ = this->
-        get_parameter("PID.linear_velocity.error_threshold").as_double();
-    signal_limit_linear_velocity_ = this->
-        get_parameter("PID.linear_velocity.signal_limit").as_double();
+    nh_.getParam("/ros_controllers_node/PID/linear_velocity/Kp", Kp_linear_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/linear_velocity/Ki", Ki_linear_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/linear_velocity/Kd", Kd_linear_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/linear_velocity/error_threshold", error_threshold_linear_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/linear_velocity/signal_limit", signal_limit_linear_velocity_);
 
     // PID (angular velocity controller)
-    declare_parameter("PID.angular_velocity.Kp", 0.5);
-    declare_parameter("PID.angular_velocity.Ki", 0.0);
-    declare_parameter("PID.angular_velocity.Kd", 0.0);
-    declare_parameter("PID.angular_velocity.error_threshold", 0.1);
-    declare_parameter("PID.angular_velocity.signal_limit", 0.5);
-
-    Kp_angular_velocity_ = this->
-        get_parameter("PID.angular_velocity.Kp").as_double();
-    Ki_angular_velocity_ = this->
-        get_parameter("PID.angular_velocity.Ki").as_double();
-    Kd_angular_velocity_ = this->
-        get_parameter("PID.angular_velocity.Kd").as_double();
-    error_threshold_angular_velocity_ = this->
-        get_parameter("PID.angular_velocity.error_threshold").as_double();
-    signal_limit_angular_velocity_ = this->
-        get_parameter("PID.angular_velocity.signal_limit").as_double();
+    nh_.getParam("/ros_controllers_node/PID/angular_velocity/Kp", Kp_angular_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/angular_velocity/Ki", Ki_angular_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/angular_velocity/Kd", Kd_angular_velocity_);
+    nh_.getParam("/ros_controllers_node/PID/angular_velocity/error_threshold", error_threshold_angular_velocity_);  
+    nh_.getParam("/ros_controllers_node/PID/angular_velocity/signal_limit", signal_limit_angular_velocity_);
 
     // Stanley Controller Parameters
-    declare_parameter("Stanley.V", 1.0);
-    declare_parameter("Stanley.K", 0.5);
-    declare_parameter("Stanley.error_threshold", 0.1);
-    declare_parameter("Stanley.signal_limit", 0.5);
+    nh_.getParam("/ros_controllers_node/Stanley/V", V_);
+    nh_.getParam("/ros_controllers_nodre/Stanley/K", K_);
+    nh_.getParam("/ros_controllers_node/Stanley/error_threshold", error_threshold_stanley_controller_);
+    nh_.getParam("/ros_controllers_node/Stanley/signal_limit", signal_limit_stanley_controller_);
 
-    V_ = this->get_parameter("Stanley.V").as_double();
-    K_ = this->get_parameter("Stanley.K").as_double();
-    error_threshold_stanley_controller_ = this->
-        get_parameter("Stanley.error_threshold").as_double();
-    signal_limit_stanley_controller_ = this->
-        get_parameter("Stanley.signal_limit").as_double();
-    
     // Pure-Pursuit Controller Parameters
-    declare_parameter("PurePursuit.lookahead_distance", 2.0);
-    declare_parameter("PurePursuit.constant_velocity", 0.5);
-    declare_parameter("PurePursuit.error_threshold", 0.1);
-    declare_parameter("PurePursuit.signal_limit", 0.5);
-
-    lookahead_distance_pure_pursuit_controller_ = this->
-        get_parameter("PurePursuit.lookahead_distance").as_double();
-
-    constant_velocity_pure_pursuit_controller_ = this->
-        get_parameter("PurePursuit.constant_velocity").as_double();
-
-    error_threshold_pure_pursuit_controller_ = this->
-        get_parameter("PurePursuit.error_threshold").as_double();
-
-    signal_limit_pure_pursuit_controller_ = this->
-        get_parameter("PurePursuit.signal_limit").as_double();
-
+    nh_.getParam("/ros_controllers_node/PurePursuit/lookahead_distance", lookahead_distance_pure_pursuit_controller_);
+    nh_.getParam("/ros_controllers_node/PurePursuit/constant_velocity", constant_velocity_pure_pursuit_controller_);
+    nh_.getParam("/ros_controllers_node/PurePursuit/error_threshold", error_threshold_pure_pursuit_controller_);
+    nh_.getParam("/ros_controllers_node/PurePursuit/signal_limit", signal_limit_pure_pursuit_controller_);
+    
     // MPC Controller Parameters
-    declare_parameter("MPC.horizon", 10);
-    declare_parameter("MPC.error_threshold", 0.1);
-    declare_parameter("MPC.linear_velocity.signal_limit", 0.5);
-    declare_parameter("MPC.angular_velocity.signal_limit", 0.5);
-    declare_parameter("MPC.Q", std::vector<double>({1.0, 1.0, 0.1}));
-    declare_parameter("MPC.R", std::vector<double>({0.01, 0.01}));
-
-    horizon_mpc_controller_ = this->
-        get_parameter("MPC.horizon").as_int();
-
-    error_threshold_mpc_controller_ = this->
-        get_parameter("MPC.error_threshold").as_double();
-
-    signal_limit_linear_velocity_mpc_controller_ = this->
-        get_parameter("MPC.linear_velocity.signal_limit").as_double();
-
-    signal_limit_angular_velocity_mpc_controller_ = this->
-        get_parameter("MPC.angular_velocity.signal_limit").as_double();
-
-    mpc_q_ = this->
-        get_parameter("MPC.Q").as_double_array();
-
-    mpc_r_ = this->
-        get_parameter("MPC.R").as_double_array();
+    nh_.getParam("/ros_controllers_node/MPC/horizon", horizon_mpc_controller_);
+    nh_.getParam("/ros_controllers_node/MPC/error_threshold", error_threshold_mpc_controller_);
+    nh_.getParam("/ros_controllers_node/MPC/linear_velocity/signal_limit", signal_limit_linear_velocity_mpc_controller_);
+    nh_.getParam("/ros_controllers_node/MPC/angular_velocity/signal_limit", signal_limit_angular_velocity_mpc_controller_);
+    nh_.getParam("/ros_controllers_node/MPC/Q", mpc_q_);
+    nh_.getParam("/ros_controllers_node/MPC/R", mpc_r_);
 
 
     for (const auto &q : mpc_q_) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Q: " << q);
+        ROS_INFO_STREAM("Q: " << q);
     }
 
     for (const auto &r : mpc_r_) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "R: " << r);
+        ROS_INFO_STREAM("R: " << r);
     }
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "Signal limit linear velocity MPC: " << signal_limit_linear_velocity_mpc_controller_);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Signal limit angular velocity MPC: " << signal_limit_angular_velocity_mpc_controller_);
+    ROS_INFO_STREAM("Signal limit linear velocity MPC: " << signal_limit_linear_velocity_mpc_controller_);
+    ROS_INFO_STREAM("Signal limit angular velocity MPC: " << signal_limit_angular_velocity_mpc_controller_);
     
     // Initialize class variables
     vehicle_position_is_reached_ = false;
@@ -154,17 +90,17 @@ MainNode::MainNode()
         signal_limit_linear_velocity_mpc_controller_, signal_limit_angular_velocity_mpc_controller_, error_threshold_mpc_controller_);
 
     // Timers
-    pid_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::PID, this));
-    pid_timer_->cancel();
+    pid_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::PID, this);
+    pid_timer_.stop();
 
-    stanley_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::stanley, this));
-    stanley_timer_->cancel();
+    stanley_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::stanley, this);
+    stanley_timer_.stop();
 
-    pure_pursuit_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::purePursuit, this));
-    pure_pursuit_timer_->cancel();
+    pure_pursuit_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::purePursuit, this);
+    pure_pursuit_timer_.stop();
 
-    mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(sleep_time_), std::bind(&MainNode::mpc, this));
-    mpc_timer_->cancel();
+    mpc_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::mpc, this);
+    mpc_timer_.stop();
 
     this->controlManager();
 }   
@@ -177,7 +113,7 @@ MainNode::~MainNode() {
 
 
 
-void MainNode::odometryCallback(const nav_msgs::msg::Odometry::SharedPtr message) {
+void MainNode::odometryCallback(const nav_msgs::Odometry::ConstPtr message) {
     odometry_message_ = *message;
 
     tf2::Quaternion quaternion(
@@ -203,9 +139,9 @@ void MainNode::prepareWaypoints() {
     path_.poses.clear();
 
     for (int i=1; i<number_of_points + 1; i++) {
-        geometry_msgs::msg::PoseStamped pose;
+        geometry_msgs::PoseStamped pose;
         pose.header.frame_id = "map";
-        pose.header.stamp = this->now();
+        pose.header.stamp = ros::Time::now();
 
         pose.pose.position.x = static_cast<double>(i) * 0.5;
         pose.pose.position.y = ampliute * std::sin(frequency * pose.pose.position.x);
@@ -236,17 +172,18 @@ void MainNode::resetSystem() {
     // Setting cmd vel message to 0.0
     cmd_vel_message_.linear.x = 0.0;
     cmd_vel_message_.angular.z = 0.0;
-    cmd_vel_publisher_->publish(cmd_vel_message_);
+    cmd_vel_publisher_.publish(cmd_vel_message_);
 
     // Resetting vehicle poses 
     vehicle_poses_.clear();
 
     // Reset Gazebo Simulation
     if (USE_GAZEBO) {
-        auto empty_request = std::make_shared<std_srvs::srv::Empty::Request>();
-        auto result = reset_simulation_client_->async_send_request(empty_request);
+        std_srvs::Empty empty_request;
+        auto result = reset_simulation_client_.call(empty_request);
+        ROS_INFO_STREAM("Simulation is reset.");
     } else {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Gazebo is not used.");
+        ROS_INFO_STREAM("Gazebo is not used.");
     }
 } 
 
@@ -257,15 +194,15 @@ void MainNode::controlManager() {
     // pid_timer_->reset();
     // stanley_timer_->reset();
     // pure_pursuit_timer_->reset();
-    mpc_timer_->reset();
+    mpc_timer_.start();
 }
 
 
 
 void MainNode::PID() {
     if (index_of_pose_ >= path_.poses.size()) {
-        pid_timer_->cancel();
-        RCLCPP_INFO_STREAM(this->get_logger(), "PID controller is ended.");
+        pid_timer_.stop();
+        ROS_INFO_STREAM("PID controller is ended.");
         writeAndPlotResults("pid");
         resetSystem();
         return;

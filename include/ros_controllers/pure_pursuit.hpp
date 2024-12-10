@@ -26,7 +26,7 @@ namespace ROS2Controllers
 
             double vehicle_position_y_;
 
-            std::vector<geometry_msgs::msg::PoseStamped> path_;
+            std::vector<geometry_msgs::PoseStamped> path_;
 
             const double error_threshold_;
 
@@ -63,7 +63,7 @@ namespace ROS2Controllers
             void findIndexOfClosestPointToLookAhead(void);
 
             std::tuple<double, bool> getPurePursuitSignal(const double error, const double dt, 
-                const double vehicle_yaw, const std::vector<geometry_msgs::msg::PoseStamped> path);
+                const double vehicle_yaw, const std::vector<geometry_msgs::PoseStamped> path);
     };
 } // namespace ROS2Controllers
 

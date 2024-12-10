@@ -19,12 +19,12 @@
 #include "ros_controllers/pure_pursuit.hpp"
 
 // Messages
-#include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/odometry.hpp>
-#include <nav_msgs/msg/path.hpp>
+#include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 
 // Services
-#include <std_srvs/srv/empty.hpp>
+#include <std_srvs/Empty.h>
 
 
 
@@ -33,14 +33,16 @@
 
 
 
-class MainNode : public rclcpp::Node
+class MainNode 
 {
     private:
-        rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
+        ros::NodeHandle &nh_;
 
-        rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscriber_;
+        ros::Subscriber odometry_subscriber_;
+        
+        ros::Publisher cmd_vel_publisher_;
 
-        rclcpp::Client<std_srvs::srv::Empty>::SharedPtr reset_simulation_client_;
+        ros::ServiceClient reset_simulation_client_;
 
         std::unique_ptr<ROS2Controllers::StanleyController> stanley_controller_;
         std::unique_ptr<ROS2Controllers::PIDController> linear_velocity_pid_controller_;
@@ -48,19 +50,19 @@ class MainNode : public rclcpp::Node
         std::unique_ptr<ROS2Controllers::PurePursuitController> pure_pursuite_controller_;
         std::unique_ptr<ROS2Controllers::MPCController> mpc_controller_;
 
-        rclcpp::TimerBase::SharedPtr pid_timer_;
-        rclcpp::TimerBase::SharedPtr stanley_timer_;
-        rclcpp::TimerBase::SharedPtr pure_pursuit_timer_;
-        rclcpp::TimerBase::SharedPtr mpc_timer_;
+        ros::Timer pid_timer_;
+        ros::Timer stanley_timer_;
+        ros::Timer pure_pursuit_timer_;
+        ros::Timer mpc_timer_;
 
-        nav_msgs::msg::Odometry odometry_message_;
+        nav_msgs::Odometry odometry_message_;
 
-        geometry_msgs::msg::Twist cmd_vel_message_;
+        geometry_msgs::Twist cmd_vel_message_;
 
-        nav_msgs::msg::Path path_;
+        nav_msgs::Path path_;
 
-        std::vector<geometry_msgs::msg::Pose> desired_poses_;
-        std::vector<geometry_msgs::msg::Pose> vehicle_poses_;
+        std::vector<geometry_msgs::Pose> desired_poses_;
+        std::vector<geometry_msgs::Pose> vehicle_poses_;
         std::vector<double> continuous_errors_;
         std::vector<double> discrete_errors_;
 
@@ -118,9 +120,9 @@ class MainNode : public rclcpp::Node
 
         bool vehicle_orientation_is_reached_;
 
-        geometry_msgs::msg::Pose previous_waypoint_;
+        geometry_msgs::Pose previous_waypoint_;
 
-        geometry_msgs::msg::Pose next_waypoint_;
+        geometry_msgs::Pose next_waypoint_;
 
         // Pure-Pursuit Controller Parameters
         double lookahead_distance_pure_pursuit_controller_;
@@ -158,11 +160,11 @@ class MainNode : public rclcpp::Node
     protected:
 
     public:
-        MainNode();
+        MainNode(ros::NodeHandle &node_handle);
 
         ~MainNode();
 
-        void odometryCallback(const nav_msgs::msg::Odometry::SharedPtr message);
+        void odometryCallback(const nav_msgs::Odometry::ConstPtr message);
 
         void prepareWaypoints();
 
