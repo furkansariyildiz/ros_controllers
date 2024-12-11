@@ -11,11 +11,11 @@ MainNode::MainNode(ros::NodeHandle &node_handle)
     cmd_vel_publisher_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
     
     // Services
-    reset_simulation_client_ = nh_.serviceClient<std_srvs::Empty>("/reset_simulation");
+    reset_simulation_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/reset_simulation");
     
     // Parameters
     nh_.getParam("/ros_controllers_node/sleep_time", sleep_time_);
-    nh_.getParam("/ros_controllers_node/cs_folder_name", csv_folder_name_);
+    nh_.getParam("/ros_controllers_node/csv_folder_name", csv_folder_name_);
     nh_.getParam("/ros_controllers_node/vehicle_base_width", vehicle_base_width_);
 
     // PID (linear velocity controller)
@@ -346,7 +346,6 @@ void MainNode::purePursuit(const ros::TimerEvent &event) {
 
 
 void MainNode::mpc(const ros::TimerEvent &event) {
-    ROS_INFO_STREAM("MPC controller is started.");
     Eigen::VectorXd state(3);
     state << odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_;  // x, y, theta
 
