@@ -172,13 +172,13 @@ class MainNode
 
         void controlManager();
 
-        void PID();
+        void PID(const ros::TimerEvent &event);
 
-        void stanley();
+        void stanley(const ros::TimerEvent &event);
 
-        void purePursuit();
+        void purePursuit(const ros::TimerEvent &event);
 
-        void mpc();
+        void mpc(const ros::TimerEvent &event);
 
         void writeAndPlotResults(const std::string test_name);
 };

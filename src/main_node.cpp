@@ -90,16 +90,16 @@ MainNode::MainNode(ros::NodeHandle &node_handle)
         signal_limit_linear_velocity_mpc_controller_, signal_limit_angular_velocity_mpc_controller_, error_threshold_mpc_controller_);
 
     // Timers
-    pid_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::PID, this);
+    pid_timer_ = nh_.createTimer(ros::Duration(dt_), &MainNode::PID, this);
     pid_timer_.stop();
 
-    stanley_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::stanley, this);
+    stanley_timer_ = nh_.createTimer(ros::Duration(dt_), &MainNode::stanley, this);
     stanley_timer_.stop();
 
-    pure_pursuit_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::purePursuit, this);
+    pure_pursuit_timer_ = nh_.createTimer(ros::Duration(dt_), &MainNode::purePursuit, this);
     pure_pursuit_timer_.stop();
 
-    mpc_timer_ = nh_.createTimer(ros::Duration(sleep_time_), &MainNode::mpc, this);
+    mpc_timer_ = nh_.createTimer(ros::Duration(dt_), &MainNode::mpc, this);
     mpc_timer_.stop();
 
     this->controlManager();
@@ -199,7 +199,7 @@ void MainNode::controlManager() {
 
 
 
-void MainNode::PID() {
+void MainNode::PID(const ros::TimerEvent &event) {
     if (index_of_pose_ >= path_.poses.size()) {
         pid_timer_.stop();
         ROS_INFO_STREAM("PID controller is ended.");
@@ -209,10 +209,10 @@ void MainNode::PID() {
     }
 
     // Desired pose
-    geometry_msgs::msg::Pose desired_pose = path_.poses[index_of_pose_].pose;
+    geometry_msgs::Pose desired_pose = path_.poses[index_of_pose_].pose;
     
     // Vehicle pose
-    geometry_msgs::msg::Pose vehicle_pose = odometry_message_.pose.pose;
+    geometry_msgs::Pose vehicle_pose = odometry_message_.pose.pose;
 
     // Linear velocity error (sqrt((x2 - x1)^2 + (y2 - y1)^2)) meters
     linear_velocity_error_ = std::sqrt(std::pow(desired_pose.position.x - vehicle_pose.position.x, 2) + 
@@ -234,8 +234,8 @@ void MainNode::PID() {
     auto [angular_velocity_signal_, vehicle_orientation_is_reached_] = angular_velocity_pid_controller_->getPIDControllerSignal(
         angular_velocity_error_, dt_);
 
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Linear velocity: " << linear_velocity_signal_);
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Angular velocity: " << angular_velocity_signal_);
+    ROS_ERROR_STREAM("Linear velocity: " << linear_velocity_signal_);
+    ROS_ERROR_STREAM("Angular velocity: " << angular_velocity_signal_);
 
     // Checking vehicle is reached to position or not.
     if (vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
@@ -243,22 +243,22 @@ void MainNode::PID() {
 
         // Saving discrete errors for visualization
         discrete_errors_.push_back(linear_velocity_pid_controller_->getDiscreteError());
-        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+        ROS_INFO_STREAM("Target is reached, index: " << index_of_pose_);
     }
 
     // Preparing cmd vel message 
     cmd_vel_message_.linear.x = linear_velocity_signal_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Linear error: " << linear_velocity_error_);
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Angular error: " << angular_velocity_error_ << "\n");
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Desired angle: " << desired_angle);
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Vehicle yaw: " << yaw_);
+    ROS_ERROR_STREAM("Linear error: " << linear_velocity_error_);
+    ROS_ERROR_STREAM("Angular error: " << angular_velocity_error_ << "\n");
+    ROS_ERROR_STREAM("Desired angle: " << desired_angle);
+    ROS_ERROR_STREAM("Vehicle yaw: " << yaw_);
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------");
+    ROS_INFO_STREAM("-----------------------------------------------");
 
     // Publishing cmd vel message
-    cmd_vel_publisher_->publish(cmd_vel_message_);
+    cmd_vel_publisher_.publish(cmd_vel_message_);
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
@@ -269,17 +269,17 @@ void MainNode::PID() {
 
 
 
-void MainNode::stanley() {
+void MainNode::stanley(const ros::TimerEvent &event) {
     if (index_of_pose_ >= path_.poses.size()) {
-        stanley_timer_->cancel();
-        RCLCPP_INFO_STREAM(this->get_logger(), "Stanley controller is ended.");
+        stanley_timer_.stop();
+        ROS_INFO_STREAM("Stanley controller is ended.");
         writeAndPlotResults("stanley");
         resetSystem();
         return;
     }
 
     // Vehicle pose
-    geometry_msgs::msg::Pose vehicle_pose = odometry_message_.pose.pose;
+    geometry_msgs::Pose vehicle_pose = odometry_message_.pose.pose;
 
     auto [linear_velocity_signal_, angular_velocity_signal_, vehicle_position_is_reached_] = stanley_controller_->
         getStanleyControllerSignal(next_waypoint_.position.x, next_waypoint_.position.y, previous_waypoint_.position.x, 
@@ -290,14 +290,14 @@ void MainNode::stanley() {
         next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
         index_of_pose_++;
 
-        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+        ROS_INFO_STREAM("Target is reached, index: " << index_of_pose_);
     }
 
     // Preparing cmd vel message
     cmd_vel_message_.linear.x = linear_velocity_signal_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
-    cmd_vel_publisher_->publish(cmd_vel_message_);   
+    cmd_vel_publisher_.publish(cmd_vel_message_);   
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose); 
@@ -311,13 +311,13 @@ void MainNode::stanley() {
 
 
 
-void MainNode::purePursuit() {
+void MainNode::purePursuit(const ros::TimerEvent &event) {
     auto [angular_velocity_signal_, vehicle_is_reached_] = pure_pursuite_controller_->getPurePursuitSignal(
         odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
 
     if (vehicle_is_reached_) {
-        pure_pursuit_timer_->cancel();
-        RCLCPP_INFO_STREAM(this->get_logger(), "Pure-Pursuit controller is ended.");
+        pure_pursuit_timer_.stop();
+        ROS_INFO_STREAM("Pure-Pursuit controller is ended.");
         writeAndPlotResults("pure_pursuit");
         resetSystem();
         return;
@@ -331,7 +331,7 @@ void MainNode::purePursuit() {
     cmd_vel_message_.linear.x = constant_velocity_pure_pursuit_controller_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
-    cmd_vel_publisher_->publish(cmd_vel_message_);
+    cmd_vel_publisher_.publish(cmd_vel_message_);
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
@@ -345,15 +345,16 @@ void MainNode::purePursuit() {
 
 
 
-void MainNode::mpc() {
+void MainNode::mpc(const ros::TimerEvent &event) {
+    ROS_INFO_STREAM("MPC controller is started.");
     Eigen::VectorXd state(3);
     state << odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_;  // x, y, theta
 
     std::vector<Eigen::VectorXd> reference_trajectory;
 
     if (index_of_pose_ >= path_.poses.size()) {
-        mpc_timer_->cancel();
-        RCLCPP_INFO_STREAM(this->get_logger(), "MPC controller is ended.");
+        mpc_timer_.stop();
+        ROS_INFO_STREAM("MPC controller is ended.");
         writeAndPlotResults("mpc");
         resetSystem();
         return;
@@ -383,14 +384,14 @@ void MainNode::mpc() {
 
     if (vehicle_position_is_reached_) {
         index_of_pose_++;
-        RCLCPP_INFO_STREAM(this->get_logger(), "Target is reached, index: " << index_of_pose_);
+        ROS_INFO_STREAM("Target is reached, index: " << index_of_pose_);
     }
 
     // Preparing cmd vel message
     cmd_vel_message_.linear.x = optimal_velocity;
     cmd_vel_message_.angular.z = optimal_steering_angle;
 
-    cmd_vel_publisher_->publish(cmd_vel_message_);
+    cmd_vel_publisher_.publish(cmd_vel_message_);
 
     // Saving vehicle poses for visualization
     vehicle_poses_.push_back(odometry_message_.pose.pose);
@@ -401,11 +402,11 @@ void MainNode::mpc() {
     // Saving discrete errors for visualization
     discrete_errors_.push_back(mpc_controller_->getDiscreteError());
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "Optimal steering angle: " << optimal_steering_angle);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Index of pose: " << index_of_pose_);
-    RCLCPP_INFO_STREAM(this->get_logger(), "Discrete error: " << mpc_controller_->getDiscreteError());
-    RCLCPP_INFO_STREAM(this->get_logger(), "Continuous error: " << mpc_controller_->getContinousError());
-    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------" << "\n");
+    ROS_INFO_STREAM("Optimal steering angle: " << optimal_steering_angle);
+    ROS_INFO_STREAM("Index of pose: " << index_of_pose_);
+    ROS_INFO_STREAM("Discrete error: " << mpc_controller_->getDiscreteError());
+    ROS_INFO_STREAM("Continuous error: " << mpc_controller_->getContinousError());
+    ROS_INFO_STREAM("-----------------------------------------------" << "\n");
 }
 
 
@@ -449,18 +450,20 @@ void MainNode::writeAndPlotResults(const std::string test_name) {
         continuous_error_csv_file_.close();
         discrete_error_csv_file_.close();
     } else {
-        RCLCPP_ERROR_STREAM(this->get_logger(), "File is not opened.");
+        ROS_ERROR_STREAM("File is not opened.");
     }
 }
 
 
 
 int main(int argc, char *argv[]) {
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "ros_controllers_node");
+    ros::NodeHandle node_handle;
+    
+    MainNode main_node(node_handle);
 
-    auto main_node = std::make_shared<MainNode>();
-    rclcpp::spin(main_node);
-    rclcpp::shutdown();
+    ros::spin();
+    ros::waitForShutdown();
 
     return 0;
 }

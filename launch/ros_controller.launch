@@ -1,0 +1,6 @@
+<launch>
+  <!-- ROS Controllers Node -->
+  <node pkg="ros_controllers" name="ros_controllers_node" type="ros_controllers_node" output="screen">
+    <rosparam file="$(find ros_controllers)/config/config.yaml" command="load"/>
+  </node>
+</launch>
