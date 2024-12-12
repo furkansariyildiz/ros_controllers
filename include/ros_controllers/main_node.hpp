@@ -23,14 +23,18 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 
+// Autoware Messages
+#include <autoware_planning_msgs/TrajectoryPoint.h>
+#include <autoware_planning_msgs/Trajectory.h>
+
 // Services
 #include <std_srvs/Empty.h>
 
 
 
 // Constants
-#define USE_GAZEBO          true
-
+#define USE_GAZEBO                      true
+#define USE_CUSTOM_TRAJECTORY           false
 
 
 class MainNode 
@@ -39,6 +43,8 @@ class MainNode
         ros::NodeHandle &nh_;
 
         ros::Subscriber odometry_subscriber_;
+
+        ros::Subscriber trajectory_subscriber_;
         
         ros::Publisher cmd_vel_publisher_;
 
@@ -60,6 +66,8 @@ class MainNode
         geometry_msgs::Twist cmd_vel_message_;
 
         nav_msgs::Path path_;
+
+        autoware_planning_msgs::Trajectory trajectory_;
 
         std::vector<geometry_msgs::Pose> desired_poses_;
         std::vector<geometry_msgs::Pose> vehicle_poses_;
@@ -164,7 +172,9 @@ class MainNode
 
         ~MainNode();
 
-        void odometryCallback(const nav_msgs::Odometry::ConstPtr message);
+        void odometryCallback(const nav_msgs::Odometry::ConstPtr &message);
+
+        void trajectoryCallback(const autoware_planning_msgs::Trajectory::ConstPtr &message);
 
         void prepareWaypoints();
 

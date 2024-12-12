@@ -22,6 +22,12 @@ catkin_package(
   CATKIN_DEPENDS roscpp rospy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs autoware_planning_msgs
 )
 
+catkin_install_python(PROGRAMS
+  scripts/trajectory_publisher.py
+  scripts/plotter.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 include_directories(
   include
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/

@@ -6,6 +6,7 @@ MainNode::MainNode(ros::NodeHandle &node_handle)
     : nh_(node_handle) {
     // Subscribers
     odometry_subscriber_ = nh_.subscribe("/odom", 1, &MainNode::odometryCallback, this);
+    trajectory_subscriber_ = nh_.subscribe("/planning/trajectory", 1, &MainNode::trajectoryCallback, this);
 
     // Publishers
     cmd_vel_publisher_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
@@ -113,7 +114,7 @@ MainNode::~MainNode() {
 
 
 
-void MainNode::odometryCallback(const nav_msgs::Odometry::ConstPtr message) {
+void MainNode::odometryCallback(const nav_msgs::Odometry::ConstPtr &message) {
     odometry_message_ = *message;
 
     tf2::Quaternion quaternion(
@@ -130,39 +131,40 @@ void MainNode::odometryCallback(const nav_msgs::Odometry::ConstPtr message) {
 
 
 
+void MainNode::trajectoryCallback(const autoware_planning_msgs::Trajectory::ConstPtr &message) {
+    trajectory_ = *message;
+    prepareWaypoints();
+}
+
+
+
 void MainNode::prepareWaypoints() {
-    // Sine wave
-    double ampliute = 2.0;
-    double frequency = 0.2;
-    int number_of_points = 100;
+    if (trajectory_.points.size() > 0){
+        for (int i=0; i<trajectory_.points.size(); i++) {
+            geometry_msgs::PoseStamped pose;
+            pose.header.frame_id = "map";
+            pose.header.stamp = ros::Time::now();
 
-    path_.poses.clear();
+            pose.pose.position.x = trajectory_.points[i].pose.position.x;
+            pose.pose.position.y = trajectory_.points[i].pose.position.y;
+            pose.pose.position.z = trajectory_.points[i].pose.position.z;
 
-    for (int i=1; i<number_of_points + 1; i++) {
-        geometry_msgs::PoseStamped pose;
-        pose.header.frame_id = "map";
-        pose.header.stamp = ros::Time::now();
+            pose.pose.orientation.x = trajectory_.points[i].pose.orientation.x;
+            pose.pose.orientation.y = trajectory_.points[i].pose.orientation.y;
+            pose.pose.orientation.z = trajectory_.points[i].pose.orientation.z;
+            pose.pose.orientation.w = trajectory_.points[i].pose.orientation.w;
 
-        pose.pose.position.x = static_cast<double>(i) * 0.5;
-        pose.pose.position.y = ampliute * std::sin(frequency * pose.pose.position.x);
-        pose.pose.position.z = 0.0;
+            path_.poses.push_back(pose);
+        }
 
-        pose.pose.orientation.x = 0.0;
-        pose.pose.orientation.y = 0.0;
-        pose.pose.orientation.z = 0.0;
-        pose.pose.orientation.w = 1.0;
+        index_of_pose_ = 0;
+        previous_waypoint_ = path_.poses[index_of_pose_].pose;
+        next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
 
-        path_.poses.push_back(pose);
-    }
-
-    index_of_pose_ = 0;
-
-    previous_waypoint_ = path_.poses[index_of_pose_].pose;
-    next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
-
-    // Pushing desired poses for visualization
-    for (int i=0; i<path_.poses.size(); i++) {
-        desired_poses_.push_back(path_.poses[i].pose);
+        // Pushing desired poses for visualization
+        for (int i=0; i<path_.poses.size(); i++) {
+            desired_poses_.push_back(path_.poses[i].pose);
+        }
     }
 }
 
@@ -190,27 +192,30 @@ void MainNode::resetSystem() {
 
 
 void MainNode::controlManager() {
-    prepareWaypoints();
-    // pid_timer_->reset();
-    // stanley_timer_->reset();
-    // pure_pursuit_timer_->reset();
-    mpc_timer_.start();
+    pid_timer_.start();
+    // stanley_timer_.start();
+    // pure_pursuit_timer_.start();
+    // mpc_timer_.start();
 }
 
 
 
 void MainNode::PID(const ros::TimerEvent &event) {
     if (index_of_pose_ >= path_.poses.size()) {
-        pid_timer_.stop();
-        ROS_INFO_STREAM("PID controller is ended.");
-        writeAndPlotResults("pid");
-        resetSystem();
+        ROS_INFO_STREAM("There is no trajectory");
+        // pid_timer_.stop();
+        // ROS_INFO_STREAM("PID controller is ended.");
+        // writeAndPlotResults("pid");
+        // resetSystem();
         return;
     }
 
+    ROS_INFO_STREAM("Index of pose1: " << index_of_pose_);
+
     // Desired pose
     geometry_msgs::Pose desired_pose = path_.poses[index_of_pose_].pose;
-    
+    ROS_INFO_STREAM("Index of pose2: " << index_of_pose_);
+
     // Vehicle pose
     geometry_msgs::Pose vehicle_pose = odometry_message_.pose.pose;
 
@@ -277,6 +282,7 @@ void MainNode::stanley(const ros::TimerEvent &event) {
         resetSystem();
         return;
     }
+
 
     // Vehicle pose
     geometry_msgs::Pose vehicle_pose = odometry_message_.pose.pose;
