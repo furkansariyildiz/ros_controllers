@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     std_msgs
     std_srvs
+    autoware_planning_msgs
 )
 
 
@@ -18,7 +19,7 @@ include_directories(include {catkin_INCLUDE_DIRS})
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ros_controllers
-  CATKIN_DEPENDS roscpp rospy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs
+  CATKIN_DEPENDS roscpp rospy tf2 tf2_geometry_msgs nav_msgs geometry_msgs std_msgs std_srvs autoware_planning_msgs
 )
 
 include_directories(
