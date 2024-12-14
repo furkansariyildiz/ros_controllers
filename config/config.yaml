@@ -3,13 +3,13 @@ PID:
     Kp: 0.5
     Ki: 0.02
     Kd: 0.0
-    error_threshold: 0.1
+    error_threshold: 0.1 # meter
     signal_limit: 0.5
   angular_velocity:
-    Kp: 2.0
+    Kp: 4.0
     Ki: 0.0
     Kd: 0.0
-    error_threshold: 0.1
+    error_threshold: 0.1 # rad
     signal_limit: 0.52359877559
 Stanley:
   V: 0.25  

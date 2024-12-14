@@ -34,7 +34,7 @@ MainNode::MainNode(ros::NodeHandle &node_handle)
 
     // Stanley Controller Parameters
     nh_.getParam("/ros_controllers_node/Stanley/V", V_);
-    nh_.getParam("/ros_controllers_nodre/Stanley/K", K_);
+    nh_.getParam("/ros_controllers_node/Stanley/K", K_);
     nh_.getParam("/ros_controllers_node/Stanley/error_threshold", error_threshold_stanley_controller_);
     nh_.getParam("/ros_controllers_node/Stanley/signal_limit", signal_limit_stanley_controller_);
 
@@ -191,10 +191,10 @@ void MainNode::resetSystem() {
 
 void MainNode::controlManager() {
     prepareWaypoints();
-    // pid_timer_->reset();
+    pid_timer_.start();
     // stanley_timer_->reset();
     // pure_pursuit_timer_->reset();
-    mpc_timer_.start();
+    // mpc_timer_.start();
 }
 
 
@@ -234,9 +234,6 @@ void MainNode::PID(const ros::TimerEvent &event) {
     auto [angular_velocity_signal_, vehicle_orientation_is_reached_] = angular_velocity_pid_controller_->getPIDControllerSignal(
         angular_velocity_error_, dt_);
 
-    ROS_ERROR_STREAM("Linear velocity: " << linear_velocity_signal_);
-    ROS_ERROR_STREAM("Angular velocity: " << angular_velocity_signal_);
-
     // Checking vehicle is reached to position or not.
     if (vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
         index_of_pose_++;
@@ -250,11 +247,11 @@ void MainNode::PID(const ros::TimerEvent &event) {
     cmd_vel_message_.linear.x = linear_velocity_signal_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
-    ROS_ERROR_STREAM("Linear error: " << linear_velocity_error_);
-    ROS_ERROR_STREAM("Angular error: " << angular_velocity_error_ << "\n");
-    ROS_ERROR_STREAM("Desired angle: " << desired_angle);
-    ROS_ERROR_STREAM("Vehicle yaw: " << yaw_);
-
+    ROS_INFO_STREAM("Linear error: " << linear_velocity_error_);
+    ROS_INFO_STREAM("Angular error: " << angular_velocity_error_ << "\n");
+    ROS_INFO_STREAM("Desired angle: " << desired_angle);
+    ROS_INFO_STREAM("Vehicle yaw: " << yaw_);
+    ROS_INFO_STREAM("Position index: " << index_of_pose_);
     ROS_INFO_STREAM("-----------------------------------------------");
 
     // Publishing cmd vel message
