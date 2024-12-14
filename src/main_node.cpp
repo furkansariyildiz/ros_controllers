@@ -35,7 +35,7 @@ MainNode::MainNode(ros::NodeHandle &node_handle)
 
     // Stanley Controller Parameters
     nh_.getParam("/ros_controllers_node/Stanley/V", V_);
-    nh_.getParam("/ros_controllers_nodre/Stanley/K", K_);
+    nh_.getParam("/ros_controllers_node/Stanley/K", K_);
     nh_.getParam("/ros_controllers_node/Stanley/error_threshold", error_threshold_stanley_controller_);
     nh_.getParam("/ros_controllers_node/Stanley/signal_limit", signal_limit_stanley_controller_);
 
@@ -139,6 +139,7 @@ void MainNode::trajectoryCallback(const autoware_planning_msgs::Trajectory::Cons
 
 
 void MainNode::prepareWaypoints() {
+    /** 
     if (trajectory_.points.size() > 0){
         for (int i=0; i<trajectory_.points.size(); i++) {
             geometry_msgs::PoseStamped pose;
@@ -166,6 +167,40 @@ void MainNode::prepareWaypoints() {
             desired_poses_.push_back(path_.poses[i].pose);
         }
     }
+    */
+    // Sine wave
+    double ampliute = 2.0;
+    double frequency = 0.2;
+    int number_of_points = 100;
+
+    path_.poses.clear();
+
+    for (int i=1; i<number_of_points + 1; i++) {
+        geometry_msgs::PoseStamped pose;
+        pose.header.frame_id = "map";
+        pose.header.stamp = ros::Time::now();
+
+        pose.pose.position.x = static_cast<double>(i) * 0.5;
+        pose.pose.position.y = ampliute * std::sin(frequency * pose.pose.position.x);
+        pose.pose.position.z = 0.0;
+
+        pose.pose.orientation.x = 0.0;
+        pose.pose.orientation.y = 0.0;
+        pose.pose.orientation.z = 0.0;
+        pose.pose.orientation.w = 1.0;
+
+        path_.poses.push_back(pose);
+    }
+
+    index_of_pose_ = 0;
+
+    previous_waypoint_ = path_.poses[index_of_pose_].pose;
+    next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
+
+    // Pushing desired poses for visualization
+    for (int i=0; i<path_.poses.size(); i++) {
+        desired_poses_.push_back(path_.poses[i].pose);
+    } 
 }
 
 
@@ -192,8 +227,8 @@ void MainNode::resetSystem() {
 
 
 void MainNode::controlManager() {
-    pid_timer_.start();
-    // stanley_timer_.start();
+    // pid_timer_.start();
+    stanley_timer_.start();
     // pure_pursuit_timer_.start();
     // mpc_timer_.start();
 }
@@ -210,11 +245,8 @@ void MainNode::PID(const ros::TimerEvent &event) {
         return;
     }
 
-    ROS_INFO_STREAM("Index of pose1: " << index_of_pose_);
-
     // Desired pose
     geometry_msgs::Pose desired_pose = path_.poses[index_of_pose_].pose;
-    ROS_INFO_STREAM("Index of pose2: " << index_of_pose_);
 
     // Vehicle pose
     geometry_msgs::Pose vehicle_pose = odometry_message_.pose.pose;
@@ -275,14 +307,17 @@ void MainNode::PID(const ros::TimerEvent &event) {
 
 
 void MainNode::stanley(const ros::TimerEvent &event) {
-    if (index_of_pose_ >= path_.poses.size()) {
+    if (path_.poses.size() != 0 && index_of_pose_ >= path_.poses.size()) {
         stanley_timer_.stop();
         ROS_INFO_STREAM("Stanley controller is ended.");
         writeAndPlotResults("stanley");
         resetSystem();
+
+        return;
+    } else if (path_.poses.size() == 0) {
+        ROS_INFO_STREAM("There is no trajectory.");
         return;
     }
-
 
     // Vehicle pose
     geometry_msgs::Pose vehicle_pose = odometry_message_.pose.pose;
@@ -313,6 +348,9 @@ void MainNode::stanley(const ros::TimerEvent &event) {
     
     // Saving discrete errors for visualization
     discrete_errors_.push_back(stanley_controller_->getDiscreteError());
+
+    ROS_INFO_STREAM("Error: " << stanley_controller_->getContinousError());
+    ROS_INFO_STREAM("Position index: " << index_of_pose_);
 }
 
 

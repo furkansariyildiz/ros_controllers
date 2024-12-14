@@ -2,22 +2,31 @@
 import rospy
 import math
 from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
+from nav_msgs.msg import Odometry
 
 
 class TrajectoryPublisher:
     def __init__(self):
-        self.trajectory_publisher_ = rospy.Publisher('/planning/trajectory', Trajectory, queue_size=1)
-        self.rate_ = rospy.Rate(10)
+        self.trajectory_publisher_ = rospy.Publisher('/planning/trajectory', Trajectory, queue_size=10)
+        self.odometry_subscriber_ = rospy.Subscriber('/odometry', Odometry, self.odometry_callback)
+        self.rate_ = rospy.Rate(10.0)
 
         self.trajectory_ = Trajectory()
+        self.odometry_message_ = Odometry()
         
+
+
+    def odometry_callback(self, message: Odometry):
+        self.odometry_ = message
+
+
 
     def prepare_trajectory(self):
         amplitude = 2.0
         frequency = 0.2
         number_of_points = 100
 
-        for i in range(number_of_points):
+        for i in range(1, number_of_points):
             point = TrajectoryPoint()
             point.pose.position.x = i * 0.5
             point.pose.position.y = amplitude * math.sin(frequency * point.pose.position.x)
@@ -33,9 +42,16 @@ class TrajectoryPublisher:
 
     def publish_trajectory(self):
         self.prepare_trajectory()
+        self.trajectory_publisher_.publish(self.trajectory_)
+
         while not rospy.is_shutdown():
-            self.trajectory_publisher_.publish(self.trajectory_)
-            self.rate_.sleep()
+            if self.trajectory_publisher_.get_num_connections() > 0:
+                self.trajectory_publisher_.publish(self.trajectory_) 
+                rospy.loginfo("Trajectory has been published successfully.")
+                break
+            else:
+                rospy.logwarn("No subscribers connected. Trajectory not published.")
+        self.rate_.sleep()
 
 
 if __name__ == '__main__':
