@@ -139,7 +139,7 @@ void MainNode::trajectoryCallback(const autoware_planning_msgs::Trajectory::Cons
 
 
 void MainNode::prepareWaypoints() {
-    /*
+    
     if (trajectory_.points.size() > 0){
         for (int i=0; i<trajectory_.points.size(); i++) {
             geometry_msgs::PoseStamped pose;
@@ -167,7 +167,7 @@ void MainNode::prepareWaypoints() {
             desired_poses_.push_back(path_.poses[i].pose);
         }
     }
-    */
+    /*
     // Sine wave
     double ampliute = 2.0;
     double frequency = 0.2;
@@ -201,7 +201,7 @@ void MainNode::prepareWaypoints() {
     for (int i=0; i<path_.poses.size(); i++) {
         desired_poses_.push_back(path_.poses[i].pose);
     } 
-    
+    */
 }
 
 
@@ -228,8 +228,8 @@ void MainNode::resetSystem() {
 
 
 void MainNode::controlManager() {
-    pid_timer_.start();
-    // stanley_timer_.start();
+    // pid_timer_.start();
+    stanley_timer_.start();
     // pure_pursuit_timer_.start();
     // mpc_timer_.start();
 }
