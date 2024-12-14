@@ -139,7 +139,7 @@ void MainNode::trajectoryCallback(const autoware_planning_msgs::Trajectory::Cons
 
 
 void MainNode::prepareWaypoints() {
-    /** 
+    /*
     if (trajectory_.points.size() > 0){
         for (int i=0; i<trajectory_.points.size(); i++) {
             geometry_msgs::PoseStamped pose;
@@ -201,6 +201,7 @@ void MainNode::prepareWaypoints() {
     for (int i=0; i<path_.poses.size(); i++) {
         desired_poses_.push_back(path_.poses[i].pose);
     } 
+    
 }
 
 
@@ -227,8 +228,8 @@ void MainNode::resetSystem() {
 
 
 void MainNode::controlManager() {
-    // pid_timer_.start();
-    stanley_timer_.start();
+    pid_timer_.start();
+    // stanley_timer_.start();
     // pure_pursuit_timer_.start();
     // mpc_timer_.start();
 }
@@ -236,12 +237,14 @@ void MainNode::controlManager() {
 
 
 void MainNode::PID(const ros::TimerEvent &event) {
-    if (index_of_pose_ >= path_.poses.size()) {
-        ROS_INFO_STREAM("There is no trajectory");
-        // pid_timer_.stop();
-        // ROS_INFO_STREAM("PID controller is ended.");
-        // writeAndPlotResults("pid");
-        // resetSystem();
+    if (path_.poses.size() != 0 && index_of_pose_ >= path_.poses.size()) {
+        pid_timer_.stop();
+        ROS_INFO_STREAM("PID controller is ended.");
+        writeAndPlotResults("pid");
+        resetSystem();
+        return;
+    } else if (path_.poses.size() == 0) {
+        ROS_WARN_STREAM("There is no trajectory.");
         return;
     }
 
@@ -271,9 +274,6 @@ void MainNode::PID(const ros::TimerEvent &event) {
     auto [angular_velocity_signal_, vehicle_orientation_is_reached_] = angular_velocity_pid_controller_->getPIDControllerSignal(
         angular_velocity_error_, dt_);
 
-    ROS_ERROR_STREAM("Linear velocity: " << linear_velocity_signal_);
-    ROS_ERROR_STREAM("Angular velocity: " << angular_velocity_signal_);
-
     // Checking vehicle is reached to position or not.
     if (vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
         index_of_pose_++;
@@ -287,10 +287,11 @@ void MainNode::PID(const ros::TimerEvent &event) {
     cmd_vel_message_.linear.x = linear_velocity_signal_;
     cmd_vel_message_.angular.z = angular_velocity_signal_;
 
-    ROS_ERROR_STREAM("Linear error: " << linear_velocity_error_);
-    ROS_ERROR_STREAM("Angular error: " << angular_velocity_error_ << "\n");
-    ROS_ERROR_STREAM("Desired angle: " << desired_angle);
-    ROS_ERROR_STREAM("Vehicle yaw: " << yaw_);
+    ROS_INFO_STREAM("Linear error: " << linear_velocity_error_);
+    ROS_INFO_STREAM("Angular error: " << angular_velocity_error_ << "\n");
+    ROS_INFO_STREAM("Desired angle: " << desired_angle);
+    ROS_INFO_STREAM("Vehicle yaw: " << yaw_);
+    ROS_INFO_STREAM("Pose index: " << index_of_pose_);
 
     ROS_INFO_STREAM("-----------------------------------------------");
 
