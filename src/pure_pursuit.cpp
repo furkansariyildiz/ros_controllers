@@ -71,7 +71,6 @@ void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead(
             previous_index_of_pose_ = index_of_pose_;
             double previous_target_x = path_[previous_index_of_pose_].pose.position.x;
             double previous_target_y = path_[previous_index_of_pose_].pose.position.y;
-            discrete_error_ = findDistance(previous_target_x, previous_target_y, vehicle_position_x_, vehicle_position_y_);
             previous_index_of_pose_initialized_ = true;
         }
 
@@ -85,19 +84,22 @@ void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead(
 
 std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitSignal(const double vehicle_position_x, const double vehicle_position_y,
     const double vehicle_yaw, const std::vector<geometry_msgs::PoseStamped> path) {
-    
     path_ = path;
     vehicle_position_x_ = vehicle_position_x;
     vehicle_position_y_ = vehicle_position_y;
 
     findIndexOfNearestPoint();
+
+    double previous_target_x = path_[index_of_pose_].pose.position.x;
+    double previous_target_y = path_[index_of_pose_].pose.position.y;
+
     findIndexOfClosestPointToLookAhead();
 
     double target_x = path_[index_of_pose_].pose.position.x;
     double target_y = path_[index_of_pose_].pose.position.y;
 
     // Continous error
-    continous_error_ = findDistance(target_x, target_y, vehicle_position_x_, vehicle_position_y_);
+    continous_error_ = findDistance(previous_target_x, previous_target_y, vehicle_position_x_, vehicle_position_y_);
 
     double alpha = atan2(target_y - vehicle_position_y_, target_x - vehicle_position_x_) - vehicle_yaw;
 
@@ -118,17 +120,13 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
             angular_velocity = -signal_limit_;
         }
     }
-
-    if (index_of_pose_ >= path_.size()) {
-        std::cout << "Target is reached." << std::endl;
+    
+    if (std::abs(continous_error_) <= lookahead_distance_) {
+        discrete_error_ = continous_error_;
         return std::make_tuple(angular_velocity, true);
     }
 
-    std::cout << "Index of pose : " << index_of_pose_ << std::endl;
-    std::cout << "Distance (ld): " << ld << std::endl;
-    std::cout << "Continous error: " << continous_error_ << std::endl;
-    std::cout << "Discerete error: " << discrete_error_ << std::endl;
-    std::cout << "-------------------------------" << std::endl;
+    ROS_INFO_STREAM("Index of pose: " << index_of_pose_);
 
     return std::make_tuple(angular_velocity, false);
 }

@@ -166,42 +166,6 @@ void MainNode::prepareWaypoints() {
             desired_poses_.push_back(path_.poses[i].pose);
         }
     }
-
-    /*
-    // Sine wave
-    double ampliute = 2.0;
-    double frequency = 0.2;
-    int number_of_points = 100;
-
-    path_.poses.clear();
-
-    for (int i=1; i<number_of_points; i++) {
-        geometry_msgs::PoseStamped pose;
-        pose.header.frame_id = "map";
-        pose.header.stamp = ros::Time::now();
-
-        pose.pose.position.x = static_cast<double>(i) * 0.5;
-        pose.pose.position.y = ampliute * std::sin(frequency * pose.pose.position.x);
-        pose.pose.position.z = 0.0;
-
-        pose.pose.orientation.x = 0.0;
-        pose.pose.orientation.y = 0.0;
-        pose.pose.orientation.z = 0.0;
-        pose.pose.orientation.w = 1.0;
-
-        path_.poses.push_back(pose);
-    }
-
-    index_of_pose_ = 0;
-
-    previous_waypoint_ = path_.poses[index_of_pose_].pose;
-    next_waypoint_ = path_.poses[index_of_pose_ + 1].pose;
-
-    // Pushing desired poses for visualization
-    for (int i=0; i<path_.poses.size(); i++) {
-        desired_poses_.push_back(path_.poses[i].pose);
-    } 
-    */
 }
 
 
@@ -292,7 +256,6 @@ void MainNode::PID(const ros::TimerEvent &event) {
     ROS_INFO_STREAM("Desired angle: " << desired_angle);
     ROS_INFO_STREAM("Vehicle yaw: " << yaw_);
     ROS_INFO_STREAM("Pose index: " << index_of_pose_);
-
     ROS_INFO_STREAM("-----------------------------------------------");
 
     // Publishing cmd vel message
@@ -355,13 +318,8 @@ void MainNode::stanley(const ros::TimerEvent &event) {
 
 
 
-void MainNode::purePursuit(const ros::TimerEvent &event) {
-    if (path_.poses.size() != 0) {
-        std::tie(angular_velocity_signal_, vehicle_is_reached_) = pure_pursuite_controller_->getPurePursuitSignal(
-            odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
-    }
-    
-    if (vehicle_is_reached_) {
+void MainNode::purePursuit(const ros::TimerEvent &event) {    
+    if (path_.poses.size() != 0 && index_of_pose_ >= path_.poses.size()) {
         pure_pursuit_timer_.stop();
         ROS_INFO_STREAM("Pure-Pursuit controller is ended.");
         writeAndPlotResults("pure_pursuit");
@@ -372,6 +330,19 @@ void MainNode::purePursuit(const ros::TimerEvent &event) {
         return;
     }
 
+    std::tie(angular_velocity_signal_, vehicle_position_is_reached_) = pure_pursuite_controller_->getPurePursuitSignal(
+        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
+
+    if (vehicle_position_is_reached_) {
+        index_of_pose_++;
+        ROS_INFO_STREAM("Target is reached, index: " << index_of_pose_);
+    }
+
+    
+    ROS_INFO_STREAM("Index of pose: " << index_of_pose_);
+    ROS_INFO_STREAM("Linear error: " << pure_pursuite_controller_->getContinousError());
+    ROS_INFO_STREAM("-----------------------------------------------");
+    
     // Preparing cmd vel message
     /**
      * @todo Linear velocity will be calculated from pure-pursuit controller. 
@@ -390,8 +361,6 @@ void MainNode::purePursuit(const ros::TimerEvent &event) {
     
     // Saving discrete errors for visualization
     discrete_errors_.push_back(pure_pursuite_controller_->getDiscreteError());
-
-    ROS_INFO_STREAM("Continous error: " << pure_pursuite_controller_->getContinousError());
 }
 
 
