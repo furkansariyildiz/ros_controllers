@@ -139,7 +139,6 @@ void MainNode::trajectoryCallback(const autoware_planning_msgs::Trajectory::Cons
 
 
 void MainNode::prepareWaypoints() {
-    
     if (trajectory_.points.size() > 0){
         for (int i=0; i<trajectory_.points.size(); i++) {
             geometry_msgs::PoseStamped pose;
@@ -167,6 +166,7 @@ void MainNode::prepareWaypoints() {
             desired_poses_.push_back(path_.poses[i].pose);
         }
     }
+
     /*
     // Sine wave
     double ampliute = 2.0;
@@ -175,7 +175,7 @@ void MainNode::prepareWaypoints() {
 
     path_.poses.clear();
 
-    for (int i=1; i<number_of_points + 1; i++) {
+    for (int i=1; i<number_of_points; i++) {
         geometry_msgs::PoseStamped pose;
         pose.header.frame_id = "map";
         pose.header.stamp = ros::Time::now();
@@ -229,8 +229,8 @@ void MainNode::resetSystem() {
 
 void MainNode::controlManager() {
     // pid_timer_.start();
-    stanley_timer_.start();
-    // pure_pursuit_timer_.start();
+    // stanley_timer_.start();
+    pure_pursuit_timer_.start();
     // mpc_timer_.start();
 }
 
@@ -313,7 +313,6 @@ void MainNode::stanley(const ros::TimerEvent &event) {
         ROS_INFO_STREAM("Stanley controller is ended.");
         writeAndPlotResults("stanley");
         resetSystem();
-
         return;
     } else if (path_.poses.size() == 0) {
         ROS_INFO_STREAM("There is no trajectory.");
@@ -357,17 +356,22 @@ void MainNode::stanley(const ros::TimerEvent &event) {
 
 
 void MainNode::purePursuit(const ros::TimerEvent &event) {
-    auto [angular_velocity_signal_, vehicle_is_reached_] = pure_pursuite_controller_->getPurePursuitSignal(
-        odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
-
+    if (path_.poses.size() != 0) {
+        std::tie(angular_velocity_signal_, vehicle_is_reached_) = pure_pursuite_controller_->getPurePursuitSignal(
+            odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_, path_.poses);
+    }
+    
     if (vehicle_is_reached_) {
         pure_pursuit_timer_.stop();
         ROS_INFO_STREAM("Pure-Pursuit controller is ended.");
         writeAndPlotResults("pure_pursuit");
         resetSystem();
         return;
+    } else if (path_.poses.size() == 0) {
+        ROS_WARN_STREAM("There is no trajectory.");
+        return;
     }
-    
+
     // Preparing cmd vel message
     /**
      * @todo Linear velocity will be calculated from pure-pursuit controller. 
@@ -386,6 +390,8 @@ void MainNode::purePursuit(const ros::TimerEvent &event) {
     
     // Saving discrete errors for visualization
     discrete_errors_.push_back(pure_pursuite_controller_->getDiscreteError());
+
+    ROS_INFO_STREAM("Continous error: " << pure_pursuite_controller_->getContinousError());
 }
 
 

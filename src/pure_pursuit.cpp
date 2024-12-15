@@ -120,9 +120,11 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
     }
 
     if (index_of_pose_ >= path_.size()) {
+        std::cout << "Target is reached." << std::endl;
         return std::make_tuple(angular_velocity, true);
     }
 
+    std::cout << "Index of pose : " << index_of_pose_ << std::endl;
     std::cout << "Distance (ld): " << ld << std::endl;
     std::cout << "Continous error: " << continous_error_ << std::endl;
     std::cout << "Discerete error: " << discrete_error_ << std::endl;
