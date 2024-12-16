@@ -42,6 +42,8 @@ namespace ROS2Controllers
 
             double discrete_error_;
 
+            bool vehicle_position_is_reached_;
+
         protected:
 
         public:
@@ -56,9 +58,11 @@ namespace ROS2Controllers
 
             double findDistance(const double x1, const double y1, const double x2, const double y2);
 
+            double findDistanceViaIndex(void);
+
             void findIndexOfNearestPoint(void);
             
-            double findDistanceViaIndex(void);
+            void checkVehicleIsReached(void);
             
             void findIndexOfClosestPointToLookAhead(void);
 

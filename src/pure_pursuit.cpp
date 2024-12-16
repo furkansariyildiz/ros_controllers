@@ -65,6 +65,18 @@ double ROS2Controllers::PurePursuitController::findDistanceViaIndex() {
 
 
 
+void ROS2Controllers::PurePursuitController::checkVehicleIsReached() {
+    continous_error_ = findDistance(path_[index_of_pose_].pose.position.x, path_[index_of_pose_].pose.position.y, 
+        vehicle_position_x_, vehicle_position_y_);
+    if (continous_error_ < lookahead_distance_) {
+        vehicle_position_is_reached_ = true;
+    } else {
+        vehicle_position_is_reached_ = false;
+    }
+}
+
+
+
 void ROS2Controllers::PurePursuitController::findIndexOfClosestPointToLookAhead() {
     while (findDistanceViaIndex() < lookahead_distance_) {
         if (!previous_index_of_pose_initialized_) {
@@ -88,18 +100,12 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
     vehicle_position_x_ = vehicle_position_x;
     vehicle_position_y_ = vehicle_position_y;
 
+    checkVehicleIsReached();
     findIndexOfNearestPoint();
-
-    double previous_target_x = path_[index_of_pose_].pose.position.x;
-    double previous_target_y = path_[index_of_pose_].pose.position.y;
-
     findIndexOfClosestPointToLookAhead();
 
     double target_x = path_[index_of_pose_].pose.position.x;
     double target_y = path_[index_of_pose_].pose.position.y;
-
-    // Continous error
-    continous_error_ = findDistance(previous_target_x, previous_target_y, vehicle_position_x_, vehicle_position_y_);
 
     double alpha = atan2(target_y - vehicle_position_y_, target_x - vehicle_position_x_) - vehicle_yaw;
 
@@ -120,13 +126,11 @@ std::tuple<double, bool> ROS2Controllers::PurePursuitController::getPurePursuitS
             angular_velocity = -signal_limit_;
         }
     }
-    
-    if (std::abs(continous_error_) <= lookahead_distance_) {
+
+    if (vehicle_position_is_reached_) {
         discrete_error_ = continous_error_;
         return std::make_tuple(angular_velocity, true);
     }
-
-    ROS_INFO_STREAM("Index of pose: " << index_of_pose_);
 
     return std::make_tuple(angular_velocity, false);
 }
