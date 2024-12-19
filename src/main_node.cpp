@@ -194,8 +194,8 @@ void MainNode::resetSystem() {
 void MainNode::controlManager() {
     // pid_timer_.start();
     // stanley_timer_.start();
-    pure_pursuit_timer_.start();
-    // mpc_timer_.start();
+    // pure_pursuit_timer_.start();
+    mpc_timer_.start();
 }
 
 
@@ -242,8 +242,6 @@ void MainNode::PID(const ros::TimerEvent &event) {
     if (vehicle_position_is_reached_  && vehicle_orientation_is_reached_) {
         index_of_pose_++;
 
-        // Saving discrete errors for visualization
-        discrete_errors_.push_back(linear_velocity_pid_controller_->getDiscreteError());
         ROS_INFO_STREAM("Target is reached, index: " << index_of_pose_);
     }
 
@@ -266,6 +264,9 @@ void MainNode::PID(const ros::TimerEvent &event) {
 
     // Saving continous errors for visualization
     continuous_errors_.push_back(linear_velocity_pid_controller_->getContinousError());
+
+    // Saving discrete errors for visualization
+    discrete_errors_.push_back(linear_velocity_pid_controller_->getDiscreteError());
 }
 
 
@@ -366,18 +367,21 @@ void MainNode::purePursuit(const ros::TimerEvent &event) {
 
 
 void MainNode::mpc(const ros::TimerEvent &event) {
-    Eigen::VectorXd state(3);
-    state << odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_;  // x, y, theta
-
-    std::vector<Eigen::VectorXd> reference_trajectory;
-
-    if (index_of_pose_ >= path_.poses.size()) {
+    if (path_.poses.size() != 0 && index_of_pose_ >= path_.poses.size()) {
         mpc_timer_.stop();
         ROS_INFO_STREAM("MPC controller is ended.");
         writeAndPlotResults("mpc");
         resetSystem();
         return;
+    } else if (path_.poses.size() == 0) {
+        ROS_WARN_STREAM("There is no trajectory.");
+        return;
     }
+
+    Eigen::VectorXd state(3);
+    state << odometry_message_.pose.pose.position.x, odometry_message_.pose.pose.position.y, yaw_;  
+
+    std::vector<Eigen::VectorXd> reference_trajectory;
 
     int end_pose = std::min(index_of_pose_ + horizon_mpc_controller_, (int)path_.poses.size() - 1);
     
@@ -403,6 +407,7 @@ void MainNode::mpc(const ros::TimerEvent &event) {
 
     if (vehicle_position_is_reached_) {
         index_of_pose_++;
+        
         ROS_INFO_STREAM("Target is reached, index: " << index_of_pose_);
     }
 
@@ -410,6 +415,13 @@ void MainNode::mpc(const ros::TimerEvent &event) {
     cmd_vel_message_.linear.x = optimal_velocity;
     cmd_vel_message_.angular.z = optimal_steering_angle;
 
+    ROS_INFO_STREAM("Optimal steering angle: " << optimal_steering_angle);
+    ROS_INFO_STREAM("Index of pose: " << index_of_pose_);
+    ROS_INFO_STREAM("Discrete error: " << mpc_controller_->getDiscreteError());
+    ROS_INFO_STREAM("Continuous error: " << mpc_controller_->getContinousError());
+    ROS_INFO_STREAM("-----------------------------------------------" << "\n");
+
+    // Publishing cmd vel message
     cmd_vel_publisher_.publish(cmd_vel_message_);
 
     // Saving vehicle poses for visualization
@@ -420,12 +432,6 @@ void MainNode::mpc(const ros::TimerEvent &event) {
 
     // Saving discrete errors for visualization
     discrete_errors_.push_back(mpc_controller_->getDiscreteError());
-
-    ROS_INFO_STREAM("Optimal steering angle: " << optimal_steering_angle);
-    ROS_INFO_STREAM("Index of pose: " << index_of_pose_);
-    ROS_INFO_STREAM("Discrete error: " << mpc_controller_->getDiscreteError());
-    ROS_INFO_STREAM("Continuous error: " << mpc_controller_->getContinousError());
-    ROS_INFO_STREAM("-----------------------------------------------" << "\n");
 }
 
 
